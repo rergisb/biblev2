@@ -364,7 +364,7 @@ function App() {
     if (!isRecording && !isProcessing && !isPlayingAudio && !isPlayingGreeting) {
       const target = e.target as HTMLElement;
       // Don't trigger if clicking the actual button, config button, or visualizer
-      if (!target.closest('button') && !target.closest('.voice-visualizer')) {
+      if (!target.closest('button') && !target.closest('.voice-visualizer') && !target.closest('header')) {
         await handleVoiceStart();
       }
     }
@@ -431,39 +431,50 @@ function App() {
       className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer"
       onClick={handleScreenTap}
     >
-      {/* Top Navigation */}
-      <div className="fixed top-6 left-6 right-6 z-20 flex justify-between items-center">
-        {/* Chat History Button */}
-        <button
-          onClick={async (e) => {
-            e.stopPropagation();
-            await handleFirstInteraction();
-            setShowChatHistory(true);
-          }}
-          className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
-          title="View Chat History"
-        >
-          <Eye className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
-          {messages.length > 0 && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center">
-              <span className="text-xs text-white font-bold">{messages.length}</span>
-            </div>
-          )}
-        </button>
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left - Chat History Button */}
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await handleFirstInteraction();
+              setShowChatHistory(true);
+            }}
+            className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
+            title="View Chat History"
+          >
+            <Eye className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
+            {messages.length > 0 && (
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center">
+                <span className="text-xs text-white font-bold">{messages.length}</span>
+              </div>
+            )}
+          </button>
 
-        {/* Configuration Button */}
-        <button
-          onClick={async (e) => {
-            e.stopPropagation();
-            await handleFirstInteraction();
-            setShowApiConfig(true);
-          }}
-          className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
-          title="Configure ElevenLabs API"
-        >
-          <Settings className="w-6 h-6 text-gray-600 group-hover:text-gray-900 group-hover:rotate-90 transition-all duration-300" />
-        </button>
-      </div>
+          {/* Center - Logo */}
+          <div className="flex items-center justify-center">
+            <img 
+              src="https://i.ibb.co/yj8Qp41/guidinglight-upscaled.png" 
+              alt="Guiding Light Logo" 
+              className="h-12 w-auto object-contain"
+            />
+          </div>
+
+          {/* Right - Settings Button */}
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await handleFirstInteraction();
+              setShowApiConfig(true);
+            }}
+            className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
+            title="Configure ElevenLabs API"
+          >
+            <Settings className="w-6 h-6 text-gray-600 group-hover:text-gray-900 group-hover:rotate-90 transition-all duration-300" />
+          </button>
+        </div>
+      </header>
 
       {/* Subtle Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -472,8 +483,8 @@ function App() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gray-50 rounded-full blur-3xl opacity-20"></div>
       </div>
 
-      {/* Main Content Container */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6">
+      {/* Main Content Container - adjusted for header */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24">
         
         {/* Central Visualizer Area */}
         <div className="flex-1 flex items-center justify-center w-full max-w-md">
