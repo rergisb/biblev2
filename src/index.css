@@ -7,8 +7,8 @@
   scrollbar-width: thin;
 }
 
-.scrollbar-thumb-white\/20 {
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+.scrollbar-thumb-gray-300 {
+  scrollbar-color: rgba(209, 213, 219, 1) transparent;
 }
 
 .scrollbar-track-transparent {
@@ -25,12 +25,12 @@
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(209, 213, 219, 1);
   border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(156, 163, 175, 1);
 }
 
 /* Line clamp utility */
@@ -53,23 +53,28 @@
 /* Focus styles for accessibility */
 button:focus-visible,
 input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid #9333EA;
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #1F2937;
   outline-offset: 2px;
 }
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
-  .bg-white\/5 {
-    background-color: rgba(255, 255, 255, 0.15) !important;
+  .bg-gray-50 {
+    background-color: #F9FAFB !important;
   }
   
-  .border-white\/10 {
-    border-color: rgba(255, 255, 255, 0.3) !important;
+  .border-gray-200 {
+    border-color: #374151 !important;
   }
   
-  .text-gray-400 {
-    color: rgba(255, 255, 255, 0.8) !important;
+  .text-gray-600 {
+    color: #111827 !important;
+  }
+  
+  .text-gray-500 {
+    color: #374151 !important;
   }
 }
 
@@ -116,4 +121,50 @@ button, [role="button"] {
 
 .animate-custom-pulse {
   animation: custom-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Ensure proper contrast ratios */
+.text-gray-900 {
+  color: #111827;
+}
+
+.text-gray-800 {
+  color: #1F2937;
+}
+
+.text-gray-700 {
+  color: #374151;
+}
+
+.text-gray-600 {
+  color: #4B5563;
+}
+
+.text-gray-500 {
+  color: #6B7280;
+}
+
+.text-gray-400 {
+  color: #9CA3AF;
+}
+
+/* Background colors with proper contrast */
+.bg-gray-50 {
+  background-color: #F9FAFB;
+}
+
+.bg-gray-100 {
+  background-color: #F3F4F6;
+}
+
+.bg-gray-200 {
+  background-color: #E5E7EB;
+}
+
+.bg-gray-800 {
+  background-color: #1F2937;
+}
+
+.bg-gray-900 {
+  background-color: #111827;
 }

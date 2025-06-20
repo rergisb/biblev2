@@ -62,24 +62,25 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
           
           ctx.closePath();
           
-          // Create gradient based on state
+          // Create gradient based on state - using gray tones for both recording and playing
           const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, baseRadius + waveAmplitude);
           
           if (isRecording) {
-            gradient.addColorStop(0, `rgba(147, 51, 234, ${0.4 - ringProgress * 0.3})`); // purple-600
-            gradient.addColorStop(0.5, `rgba(126, 34, 206, ${0.3 - ringProgress * 0.2})`); // purple-700
-            gradient.addColorStop(1, `rgba(107, 33, 168, ${0.1 - ringProgress * 0.1})`); // purple-800
+            gradient.addColorStop(0, `rgba(31, 41, 55, ${0.4 - ringProgress * 0.3})`); // gray-800
+            gradient.addColorStop(0.5, `rgba(55, 65, 81, ${0.3 - ringProgress * 0.2})`); // gray-700
+            gradient.addColorStop(1, `rgba(75, 85, 99, ${0.1 - ringProgress * 0.1})`); // gray-600
           } else {
-            gradient.addColorStop(0, `rgba(139, 92, 246, ${0.4 - ringProgress * 0.3})`); // violet-500
-            gradient.addColorStop(0.5, `rgba(124, 58, 237, ${0.3 - ringProgress * 0.2})`); // violet-600
-            gradient.addColorStop(1, `rgba(109, 40, 217, ${0.1 - ringProgress * 0.1})`); // violet-700
+            // Use slightly lighter gray for playing state
+            gradient.addColorStop(0, `rgba(55, 65, 81, ${0.4 - ringProgress * 0.3})`); // gray-700
+            gradient.addColorStop(0.5, `rgba(75, 85, 99, ${0.3 - ringProgress * 0.2})`); // gray-600
+            gradient.addColorStop(1, `rgba(107, 114, 128, ${0.1 - ringProgress * 0.1})`); // gray-500
           }
           
           ctx.fillStyle = gradient;
           ctx.fill();
           
-          // Add glow effect
-          ctx.shadowColor = isRecording ? '#9333EA' : '#8B5CF6';
+          // Add glow effect - using gray colors for both states
+          ctx.shadowColor = isRecording ? '#1F2937' : '#374151'; // gray-800 or gray-700
           ctx.shadowBlur = 15 - (ringProgress * 10);
           ctx.fill();
           ctx.shadowBlur = 0;
@@ -90,11 +91,12 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         const pulseGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, pulseRadius);
         
         if (isRecording) {
-          pulseGradient.addColorStop(0, 'rgba(147, 51, 234, 0.8)');
-          pulseGradient.addColorStop(1, 'rgba(147, 51, 234, 0)');
+          pulseGradient.addColorStop(0, 'rgba(31, 41, 55, 0.8)'); // gray-800
+          pulseGradient.addColorStop(1, 'rgba(31, 41, 55, 0)');
         } else {
-          pulseGradient.addColorStop(0, 'rgba(139, 92, 246, 0.8)');
-          pulseGradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+          // Use gray for playing state instead of red
+          pulseGradient.addColorStop(0, 'rgba(55, 65, 81, 0.8)'); // gray-700
+          pulseGradient.addColorStop(1, 'rgba(55, 65, 81, 0)');
         }
         
         ctx.beginPath();
@@ -117,9 +119,9 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
           const radius = baseRadius * breathe;
           
           const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-          gradient.addColorStop(0, `rgba(139, 92, 246, ${opacity * 0.5})`);
-          gradient.addColorStop(0.7, `rgba(124, 58, 237, ${opacity * 0.3})`);
-          gradient.addColorStop(1, `rgba(109, 40, 217, 0)`);
+          gradient.addColorStop(0, `rgba(107, 114, 128, ${opacity * 0.5})`); // gray-500
+          gradient.addColorStop(0.7, `rgba(156, 163, 175, ${opacity * 0.3})`); // gray-400
+          gradient.addColorStop(1, `rgba(209, 213, 219, 0)`); // gray-300
           
           ctx.beginPath();
           ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
@@ -129,8 +131,8 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         
         // Subtle center dot
         const dotGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 8);
-        dotGradient.addColorStop(0, 'rgba(139, 92, 246, 0.3)');
-        dotGradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+        dotGradient.addColorStop(0, 'rgba(107, 114, 128, 0.3)');
+        dotGradient.addColorStop(1, 'rgba(107, 114, 128, 0)');
         
         ctx.beginPath();
         ctx.arc(centerX, centerY, 8, 0, Math.PI * 2);
@@ -159,13 +161,13 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         className="w-72 h-72 rounded-full"
         style={{ filter: 'blur(0.5px)' }}
       />
-      {/* Additional glow overlay */}
+      {/* Additional glow overlay - using gray colors consistently */}
       <div className={`absolute inset-0 rounded-full transition-all duration-500 ${
         isRecording 
-          ? 'bg-purple-500/5 shadow-2xl shadow-purple-500/20' 
+          ? 'bg-gray-800/5 shadow-2xl shadow-gray-800/20' 
           : isPlaying
-          ? 'bg-violet-500/5 shadow-2xl shadow-violet-500/20'
-          : 'bg-violet-500/2'
+          ? 'bg-gray-600/5 shadow-2xl shadow-gray-600/20'
+          : 'bg-gray-500/2'
       }`}></div>
     </div>
   );

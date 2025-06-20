@@ -102,7 +102,53 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Prepare audio context on first user interaction
+  // Auto-prepare audio context and play greeting on page load
+  useEffect(() => {
+    const initializeAndPlayGreeting = async () => {
+      if (hasPlayedGreeting || !browserSupportsSpeechRecognition) {
+        return;
+      }
+      
+      try {
+        console.log('🎵 Auto-initializing audio and playing greeting...');
+        
+        // Try to prepare audio context immediately
+        await prepareAudioContext();
+        setAudioContextReady(true);
+        setUserHasInteracted(true);
+        console.log('✅ Audio context auto-prepared');
+        
+        // Play greeting immediately
+        setIsPlayingGreeting(true);
+        const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+        const audioBuffer = await synthesizeSpeech(greetingText);
+        
+        await playAudioBuffer(audioBuffer);
+        setHasPlayedGreeting(true);
+        console.log('✅ Auto-greeting played successfully');
+        
+      } catch (error) {
+        console.error('❌ Auto-greeting failed:', error);
+        // If auto-play fails, fall back to requiring user interaction
+        setHasPlayedGreeting(false);
+        setUserHasInteracted(false);
+        setAudioContextReady(false);
+        
+        // Show a helpful message to the user
+        if (error instanceof Error && error.message.includes('user interaction')) {
+          setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
+        }
+      } finally {
+        setIsPlayingGreeting(false);
+      }
+    };
+
+    // Start initialization after a short delay to ensure page is fully loaded
+    const timer = setTimeout(initializeAndPlayGreeting, 1000);
+    return () => clearTimeout(timer);
+  }, [hasPlayedGreeting, browserSupportsSpeechRecognition]);
+
+  // Prepare audio context on first user interaction (fallback)
   const handleFirstInteraction = async () => {
     if (!userHasInteracted) {
       console.log('👆 First user interaction detected');
@@ -112,6 +158,7 @@ function App() {
         await prepareAudioContext();
         setAudioContextReady(true);
         console.log('✅ Audio context prepared');
+        setError(null); // Clear any previous audio errors
       } catch (error) {
         console.error('❌ Failed to prepare audio context:', error);
         setError('Audio initialization failed. Some features may not work properly.');
@@ -119,7 +166,7 @@ function App() {
     }
   };
 
-  // Play welcome greeting only after user interaction and audio context is ready
+  // Play welcome greeting after user interaction (fallback)
   useEffect(() => {
     const playWelcomeGreeting = async () => {
       if (hasPlayedGreeting || !browserSupportsSpeechRecognition || !userHasInteracted || !audioContextReady) {
@@ -142,8 +189,8 @@ function App() {
       }
     };
 
-    if (userHasInteracted && audioContextReady) {
-      const timer = setTimeout(playWelcomeGreeting, 1000);
+    if (userHasInteracted && audioContextReady && !hasPlayedGreeting) {
+      const timer = setTimeout(playWelcomeGreeting, 500);
       return () => clearTimeout(timer);
     }
   }, [hasPlayedGreeting, browserSupportsSpeechRecognition, userHasInteracted, audioContextReady]);
@@ -364,7 +411,7 @@ function App() {
     if (!isRecording && !isProcessing && !isPlayingAudio && !isPlayingGreeting) {
       const target = e.target as HTMLElement;
       // Don't trigger if clicking the actual button, config button, or visualizer
-      if (!target.closest('button') && !target.closest('.voice-visualizer')) {
+      if (!target.closest('button') && !target.closest('.voice-visualizer') && !target.closest('header')) {
         await handleVoiceStart();
       }
     }
@@ -402,21 +449,21 @@ function App() {
 
   if (!browserSupportsSpeechRecognition) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center p-6">
-        <div className="bg-black/30 backdrop-blur-xl p-8 rounded-3xl border border-purple-500/20 shadow-2xl text-center max-w-md">
-          <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-violet-400 rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
+          <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
             <MicOff className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white mb-4">Browser Not Supported</h1>
-          <p className="text-gray-300 leading-relaxed mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Browser Not Supported</h1>
+          <p className="text-gray-700 leading-relaxed mb-4">
             Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
           </p>
-          <p className="text-sm text-gray-400 mb-4">
+          <p className="text-sm text-gray-600 mb-4">
             On iOS, make sure you're using Safari and have microphone permissions enabled.
           </p>
           {isMobile && (
-            <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 mt-4">
-              <p className="text-yellow-200 text-sm">
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+              <p className="text-amber-800 text-sm">
                 📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
               </p>
             </div>
@@ -428,52 +475,63 @@ function App() {
 
   return (
     <div 
-      className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 text-white overflow-hidden cursor-pointer"
+      className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer"
       onClick={handleScreenTap}
     >
-      {/* Top Navigation */}
-      <div className="fixed top-6 left-6 right-6 z-20 flex justify-between items-center">
-        {/* Chat History Button */}
-        <button
-          onClick={async (e) => {
-            e.stopPropagation();
-            await handleFirstInteraction();
-            setShowChatHistory(true);
-          }}
-          className="p-3 bg-black/20 backdrop-blur-sm border border-white/20 rounded-2xl hover:bg-black/30 transition-all duration-200 group"
-          title="View Chat History"
-        >
-          <Eye className="w-6 h-6 text-gray-300 group-hover:text-white transition-all duration-300" />
-          {messages.length > 0 && (
-            <div className="absolute -top-1 -right-1 w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
-              <span className="text-xs text-white font-bold">{messages.length}</span>
-            </div>
-          )}
-        </button>
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4">
+          {/* Left - Chat History Button */}
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await handleFirstInteraction();
+              setShowChatHistory(true);
+            }}
+            className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
+            title="View Chat History"
+          >
+            <Eye className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
+            {messages.length > 0 && (
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center">
+                <span className="text-xs text-white font-bold">{messages.length}</span>
+              </div>
+            )}
+          </button>
 
-        {/* Configuration Button */}
-        <button
-          onClick={async (e) => {
-            e.stopPropagation();
-            await handleFirstInteraction();
-            setShowApiConfig(true);
-          }}
-          className="p-3 bg-black/20 backdrop-blur-sm border border-white/20 rounded-2xl hover:bg-black/30 transition-all duration-200 group"
-          title="Configure ElevenLabs API"
-        >
-          <Settings className="w-6 h-6 text-gray-300 group-hover:text-white group-hover:rotate-90 transition-all duration-300" />
-        </button>
-      </div>
+          {/* Center - Logo */}
+          <div className="flex items-center justify-center">
+            <img 
+              src="https://i.ibb.co/yj8Qp41/guidinglight-upscaled.png" 
+              alt="Guiding Light Logo" 
+              className="h-12 w-auto object-contain"
+            />
+          </div>
 
-      {/* Animated Background Elements */}
+          {/* Right - Settings Button */}
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+              await handleFirstInteraction();
+              setShowApiConfig(true);
+            }}
+            className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
+            title="Configure ElevenLabs API"
+          >
+            <Settings className="w-6 h-6 text-gray-600 group-hover:text-gray-900 group-hover:rotate-90 transition-all duration-300" />
+          </button>
+        </div>
+      </header>
+
+      {/* Subtle Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-400/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gray-100 rounded-full blur-3xl opacity-50"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gray-100 rounded-full blur-3xl opacity-30"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gray-50 rounded-full blur-3xl opacity-20"></div>
       </div>
 
-      {/* Main Content Container */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6">
+      {/* Main Content Container - adjusted for header */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24">
         
         {/* Central Visualizer Area */}
         <div className="flex-1 flex items-center justify-center w-full max-w-md">
@@ -494,35 +552,35 @@ function App() {
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
                 isRecording 
-                  ? 'bg-purple-500/20 shadow-lg shadow-purple-500/30' 
+                  ? 'bg-gray-800/10 shadow-lg shadow-gray-800/20' 
                   : isPlayingAudio || isPlayingGreeting
-                  ? 'bg-violet-500/20 shadow-lg shadow-violet-500/30'
-                  : 'bg-gray-500/10'
+                  ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
+                  : 'bg-gray-100/50'
               }`}>
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
                   isRecording 
-                    ? 'bg-purple-500/30 animate-pulse' 
+                    ? 'bg-gray-800/20 animate-pulse' 
                     : isPlayingAudio || isPlayingGreeting
-                    ? 'bg-violet-500/30 animate-pulse'
-                    : 'bg-gray-500/20'
+                    ? 'bg-gray-700/20 animate-pulse'
+                    : 'bg-gray-200/50'
                 }`}>
                   {isPlayingAudio || isPlayingGreeting ? (
-                    <Square className={`w-6 h-6 text-violet-300 fill-current pointer-events-auto cursor-pointer`} />
+                    <Square className={`w-6 h-6 text-gray-700 fill-current pointer-events-auto cursor-pointer`} />
                   ) : (
                     <Mic className={`w-8 h-8 transition-colors duration-300 ${
                       isRecording 
-                        ? 'text-purple-300' 
-                        : 'text-gray-400'
+                        ? 'text-gray-800' 
+                        : 'text-gray-500'
                     }`} />
                   )}
                 </div>
               </div>
             </div>
             
-            {/* Click hint overlay for audio playing state */}
+            {/* Click hint overlay for audio playing state - using gray instead of red */}
             {(isPlayingAudio || isPlayingGreeting) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="absolute inset-0 rounded-full bg-red-500/10 animate-pulse"></div>
+                <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse"></div>
               </div>
             )}
           </div>
@@ -532,17 +590,17 @@ function App() {
         <div className="w-full max-w-md space-y-4 mb-8">
           {/* Error Display */}
           {error && (
-            <div className="p-4 bg-red-500/20 backdrop-blur-sm border border-red-500/30 rounded-2xl">
-              <p className="text-red-200 text-sm text-center">{error}</p>
+            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
+              <p className="text-red-800 text-sm text-center">{error}</p>
               {error.includes('tap the screen') && (
-                <div className="mt-3 p-3 bg-blue-500/20 border border-blue-500/30 rounded-xl">
-                  <p className="text-blue-200 text-xs text-center">
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                  <p className="text-blue-800 text-xs text-center">
                     💡 <strong>Quick Fix:</strong> Tap anywhere on the screen, then try speaking again.
                   </p>
                 </div>
               )}
               {error.includes('permission') && isMobile && (
-                <p className="text-red-300 text-xs text-center mt-2">
+                <p className="text-red-700 text-xs text-center mt-2">
                   📱 On mobile: Check browser settings → Site permissions → Microphone
                 </p>
               )}
@@ -551,8 +609,8 @@ function App() {
 
           {/* Audio Context Status */}
           {userHasInteracted && !audioContextReady && (
-            <div className="p-3 bg-yellow-500/20 backdrop-blur-sm border border-yellow-500/30 rounded-2xl">
-              <p className="text-yellow-200 text-sm text-center">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+              <p className="text-amber-800 text-sm text-center">
                 🔊 Preparing audio system...
               </p>
             </div>
@@ -563,54 +621,54 @@ function App() {
             {isPlayingGreeting ? (
               <div className="space-y-1">
                 <div className="flex items-center justify-center gap-3">
-                  <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
-                  <p className="text-violet-300 font-medium">Welcome to your Bible companion...</p>
+                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
+                  <p className="text-gray-700 font-medium">Welcome to your Bible companion...</p>
                 </div>
-                <p className="text-gray-400 text-xs">Tap the center or button to stop</p>
+                <p className="text-gray-500 text-xs">Tap the center or button to stop</p>
               </div>
             ) : isRecording ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                  <p className="text-purple-300 font-medium">Listening...</p>
+                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-pulse"></div>
+                  <p className="text-gray-800 font-medium">Listening...</p>
                 </div>
-                <p className="text-gray-400 text-sm">
+                <p className="text-gray-600 text-sm">
                   {isMobile ? 'Speak clearly and wait for processing' : 'Share your heart or ask for guidance'}
                 </p>
                 {pendingTranscript && (
-                  <p className="text-purple-200 text-xs italic">"{pendingTranscript}"</p>
+                  <p className="text-gray-700 text-xs italic">"{pendingTranscript}"</p>
                 )}
               </div>
             ) : isProcessing ? (
               <div className="flex items-center justify-center gap-3">
                 <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-violet-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-violet-300 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-                <span className="text-violet-300 font-medium">Seeking wisdom...</span>
+                <span className="text-gray-700 font-medium">Seeking wisdom...</span>
               </div>
             ) : isPlayingAudio ? (
               <div className="space-y-1">
                 <div className="flex items-center justify-center gap-3">
-                  <div className="w-2 h-2 bg-violet-400 rounded-full animate-pulse"></div>
-                  <span className="text-violet-300 font-medium">🔊 Speaking God's word...</span>
+                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
+                  <span className="text-gray-700 font-medium">🔊 Speaking God's word...</span>
                 </div>
-                <p className="text-gray-400 text-xs">Tap the center or button to stop and speak</p>
+                <p className="text-gray-500 text-xs">Tap the center or button to stop and speak</p>
               </div>
             ) : (
               <div className="text-center">
-                <p className="text-gray-300 font-medium mb-2">Ready for Bible guidance</p>
-                <p className="text-gray-400 text-sm mb-1">Ask for a verse or spiritual advice</p>
+                <p className="text-gray-800 font-medium mb-2">Ready for Bible guidance</p>
+                <p className="text-gray-600 text-sm mb-1">Ask for a verse or spiritual advice</p>
                 <p className="text-gray-500 text-xs">
                   {!userHasInteracted ? 
-                    'Tap anywhere to start and enable audio' :
+                    'Audio will start automatically' :
                     (isMobile ? 'Tap the button and speak clearly' : 'Tap the button below to speak')
                   }
                 </p>
                 {isMobile && !userHasInteracted && (
-                  <p className="text-gray-600 text-xs mt-1">
-                    📱 First tap enables audio and microphone
+                  <p className="text-gray-400 text-xs mt-1">
+                    📱 Voice greeting will play automatically
                   </p>
                 )}
               </div>
@@ -623,12 +681,12 @@ function App() {
           <button
             onClick={handleButtonClick}
             disabled={isProcessing}
-            className={`relative w-20 h-20 rounded-full transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`relative w-20 h-20 rounded-full transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
               isPlayingAudio || isPlayingGreeting
-                ? 'bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/30 hover:shadow-red-500/40'
+                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
                 : isRecording
-                ? 'bg-gradient-to-r from-red-500 to-red-600 shadow-lg shadow-red-500/30 hover:shadow-red-500/40'
-                : 'bg-gradient-to-r from-purple-500 to-violet-500 shadow-lg shadow-purple-500/30 hover:shadow-purple-500/40 hover:scale-105'
+                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
+                : 'bg-gray-800 hover:bg-gray-900 shadow-gray-800/30 hover:scale-105'
             }`}
             aria-label={
               isPlayingAudio || isPlayingGreeting 
@@ -641,8 +699,8 @@ function App() {
             {/* Glow Effect */}
             <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
               isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-red-500/20 animate-ping'
-                : 'bg-purple-500/20'
+                ? 'bg-gray-700/20 animate-ping'
+                : 'bg-gray-800/20'
             }`}></div>
             
             {/* Button Content */}
@@ -661,8 +719,8 @@ function App() {
           {(isRecording || isPlayingAudio || isPlayingGreeting) && (
             <div className={`absolute inset-0 rounded-full animate-ping ${
               isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-red-500/30' 
-                : 'bg-violet-500/30'
+                ? 'bg-gray-700/30' 
+                : 'bg-gray-700/30'
             }`}></div>
           )}
         </div>
