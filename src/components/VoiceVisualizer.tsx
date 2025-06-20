@@ -62,7 +62,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
           
           ctx.closePath();
           
-          // Create gradient based on state
+          // Create gradient based on state - using gray tones for both recording and playing
           const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, baseRadius + waveAmplitude);
           
           if (isRecording) {
@@ -70,6 +70,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
             gradient.addColorStop(0.5, `rgba(55, 65, 81, ${0.3 - ringProgress * 0.2})`); // gray-700
             gradient.addColorStop(1, `rgba(75, 85, 99, ${0.1 - ringProgress * 0.1})`); // gray-600
           } else {
+            // Use slightly lighter gray for playing state
             gradient.addColorStop(0, `rgba(55, 65, 81, ${0.4 - ringProgress * 0.3})`); // gray-700
             gradient.addColorStop(0.5, `rgba(75, 85, 99, ${0.3 - ringProgress * 0.2})`); // gray-600
             gradient.addColorStop(1, `rgba(107, 114, 128, ${0.1 - ringProgress * 0.1})`); // gray-500
@@ -78,8 +79,8 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
           ctx.fillStyle = gradient;
           ctx.fill();
           
-          // Add glow effect
-          ctx.shadowColor = isRecording ? '#1F2937' : '#374151';
+          // Add glow effect - using gray colors for both states
+          ctx.shadowColor = isRecording ? '#1F2937' : '#374151'; // gray-800 or gray-700
           ctx.shadowBlur = 15 - (ringProgress * 10);
           ctx.fill();
           ctx.shadowBlur = 0;
@@ -90,10 +91,11 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         const pulseGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, pulseRadius);
         
         if (isRecording) {
-          pulseGradient.addColorStop(0, 'rgba(31, 41, 55, 0.8)');
+          pulseGradient.addColorStop(0, 'rgba(31, 41, 55, 0.8)'); // gray-800
           pulseGradient.addColorStop(1, 'rgba(31, 41, 55, 0)');
         } else {
-          pulseGradient.addColorStop(0, 'rgba(55, 65, 81, 0.8)');
+          // Use gray for playing state instead of red
+          pulseGradient.addColorStop(0, 'rgba(55, 65, 81, 0.8)'); // gray-700
           pulseGradient.addColorStop(1, 'rgba(55, 65, 81, 0)');
         }
         
@@ -159,12 +161,12 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         className="w-72 h-72 rounded-full"
         style={{ filter: 'blur(0.5px)' }}
       />
-      {/* Additional glow overlay */}
+      {/* Additional glow overlay - using gray colors consistently */}
       <div className={`absolute inset-0 rounded-full transition-all duration-500 ${
         isRecording 
           ? 'bg-gray-800/5 shadow-2xl shadow-gray-800/20' 
           : isPlaying
-          ? 'bg-gray-700/5 shadow-2xl shadow-gray-700/20'
+          ? 'bg-gray-600/5 shadow-2xl shadow-gray-600/20'
           : 'bg-gray-500/2'
       }`}></div>
     </div>

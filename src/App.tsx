@@ -519,10 +519,10 @@ function App() {
               </div>
             </div>
             
-            {/* Click hint overlay for audio playing state */}
+            {/* Click hint overlay for audio playing state - using gray instead of red */}
             {(isPlayingAudio || isPlayingGreeting) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="absolute inset-0 rounded-full bg-red-100 animate-pulse"></div>
+                <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse"></div>
               </div>
             )}
           </div>
@@ -625,9 +625,9 @@ function App() {
             disabled={isProcessing}
             className={`relative w-20 h-20 rounded-full transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
               isPlayingAudio || isPlayingGreeting
-                ? 'bg-red-600 hover:bg-red-700 shadow-red-600/30'
+                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
                 : isRecording
-                ? 'bg-red-600 hover:bg-red-700 shadow-red-600/30'
+                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
                 : 'bg-gray-800 hover:bg-gray-900 shadow-gray-800/30 hover:scale-105'
             }`}
             aria-label={
@@ -641,7 +641,7 @@ function App() {
             {/* Glow Effect */}
             <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
               isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-red-600/20 animate-ping'
+                ? 'bg-gray-700/20 animate-ping'
                 : 'bg-gray-800/20'
             }`}></div>
             
@@ -661,7 +661,7 @@ function App() {
           {(isRecording || isPlayingAudio || isPlayingGreeting) && (
             <div className={`absolute inset-0 rounded-full animate-ping ${
               isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-red-600/30' 
+                ? 'bg-gray-700/30' 
                 : 'bg-gray-700/30'
             }`}></div>
           )}
