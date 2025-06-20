@@ -402,38 +402,25 @@ function App() {
 
   if (!browserSupportsSpeechRecognition) {
     return (
-      <div className="min-h-screen bg-white flex flex-col">
-        {/* Header */}
-        <header className="w-full bg-white border-b border-gray-200 py-4 px-6">
-          <div className="flex justify-center">
-            <img 
-              src="https://i.ibb.co/GQ66PvR7/guidinglight-transparent.png" 
-              alt="Guiding Light" 
-              className="h-12 w-auto object-contain"
-            />
+      <div className="min-h-screen bg-white flex items-center justify-center p-6">
+        <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
+          <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+            <MicOff className="w-8 h-8 text-white" />
           </div>
-        </header>
-
-        <div className="flex-1 flex items-center justify-center p-6">
-          <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-              <MicOff className="w-8 h-8 text-white" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Browser Not Supported</h1>
+          <p className="text-gray-700 leading-relaxed mb-4">
+            Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
+          </p>
+          <p className="text-sm text-gray-600 mb-4">
+            On iOS, make sure you're using Safari and have microphone permissions enabled.
+          </p>
+          {isMobile && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+              <p className="text-amber-800 text-sm">
+                📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Browser Not Supported</h1>
-            <p className="text-gray-700 leading-relaxed mb-4">
-              Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
-            </p>
-            <p className="text-sm text-gray-600 mb-4">
-              On iOS, make sure you're using Safari and have microphone permissions enabled.
-            </p>
-            {isMobile && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
-                <p className="text-amber-800 text-sm">
-                  📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
-                </p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     );
@@ -441,22 +428,11 @@ function App() {
 
   return (
     <div 
-      className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer flex flex-col"
+      className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer"
       onClick={handleScreenTap}
     >
-      {/* Header */}
-      <header className="w-full bg-white border-b border-gray-200 py-4 px-6 relative z-30">
-        <div className="flex justify-center">
-          <img 
-            src="https://i.ibb.co/GQ66PvR7/guidinglight-transparent.png" 
-            alt="Guiding Light" 
-            className="h-12 w-auto object-contain"
-          />
-        </div>
-      </header>
-
       {/* Top Navigation */}
-      <div className="fixed top-20 left-6 right-6 z-20 flex justify-between items-center">
+      <div className="fixed top-6 left-6 right-6 z-20 flex justify-between items-center">
         {/* Chat History Button */}
         <button
           onClick={async (e) => {
@@ -497,7 +473,7 @@ function App() {
       </div>
 
       {/* Main Content Container */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6">
         
         {/* Central Visualizer Area */}
         <div className="flex-1 flex items-center justify-center w-full max-w-md">
