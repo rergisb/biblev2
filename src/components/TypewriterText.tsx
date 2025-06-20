@@ -33,11 +33,11 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
   }, [text]);
 
   return (
-    <div className="prose prose-invert max-w-none">
-      <p className="text-gray-200 leading-relaxed text-base whitespace-pre-wrap">
+    <div className="prose prose-gray max-w-none">
+      <p className="text-gray-800 leading-relaxed text-base whitespace-pre-wrap">
         {displayedText}
         {currentIndex < text.length && (
-          <span className="inline-block w-2 h-5 bg-[#0067D2] ml-1 animate-pulse"></span>
+          <span className="inline-block w-2 h-5 bg-gray-800 ml-1 animate-pulse"></span>
         )}
       </p>
     </div>

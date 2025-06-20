@@ -19,18 +19,18 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   isPlaying
 }) => {
   return (
-    <div className={`flex gap-4 p-6 rounded-3xl backdrop-blur-sm border transition-all duration-500 hover:scale-[1.02] ${
+    <div className={`flex gap-4 p-6 rounded-3xl border transition-all duration-500 hover:scale-[1.02] ${
       isUser 
-        ? 'bg-white/5 border-white/10 ml-16' 
-        : 'bg-gradient-to-r from-purple-500/10 to-violet-500/10 border-purple-500/20 mr-16'
+        ? 'bg-gray-50 border-gray-200 ml-16' 
+        : 'bg-white border-gray-300 mr-16 shadow-sm'
     }`}>
-      <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${
+      <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
         isUser 
-          ? 'bg-gradient-to-r from-gray-600 to-gray-700 shadow-gray-600/30' 
-          : 'bg-gradient-to-r from-purple-500 to-violet-500 shadow-purple-500/30'
+          ? 'bg-gray-300' 
+          : 'bg-gray-800'
       }`}>
         {isUser ? (
-          <User className="w-6 h-6 text-white" />
+          <User className="w-6 h-6 text-gray-700" />
         ) : (
           <MessageCircle className="w-6 h-6 text-white" />
         )}
@@ -38,14 +38,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-3 mb-3">
-          <span className="text-sm font-semibold text-white">
+          <span className="text-sm font-semibold text-gray-900">
             {isUser ? 'You' : 'Bible Companion'}
           </span>
           <span className="text-xs text-gray-500">
             {timestamp.toLocaleTimeString()}
           </span>
           {confidence && (
-            <div className="flex items-center gap-1 text-xs text-gray-400">
+            <div className="flex items-center gap-1 text-xs text-gray-500">
               <Zap className="w-3 h-3" />
               <span>{Math.round(confidence * 100)}%</span>
             </div>
@@ -56,8 +56,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
               disabled={isPlaying}
               className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 ${
                 isPlaying 
-                  ? 'bg-purple-500/30 text-purple-400 animate-pulse' 
-                  : 'hover:bg-white/10 text-gray-400 hover:text-white'
+                  ? 'bg-gray-200 text-gray-700 animate-pulse' 
+                  : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
               }`}
               title="Play audio"
             >
@@ -65,8 +65,8 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             </button>
           )}
         </div>
-        <div className="prose prose-invert max-w-none">
-          <p className="text-gray-200 leading-relaxed text-base whitespace-pre-wrap">
+        <div className="prose prose-gray max-w-none">
+          <p className="text-gray-800 leading-relaxed text-base whitespace-pre-wrap">
             {message}
           </p>
         </div>
