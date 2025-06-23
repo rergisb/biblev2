@@ -7,6 +7,7 @@ import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
 import { generateGeminiResponse } from './services/geminiService';
+import { playProcessingStartSound, playSuccessSound, playErrorSound, prepareAudioFeedback } from './services/audioFeedbackService';
 
 interface Message {
   id: string;
@@ -114,6 +115,7 @@ function App() {
         
         // Try to prepare audio context immediately
         await prepareAudioContext();
+        await prepareAudioFeedback(); // Prepare audio feedback as well
         setAudioContextReady(true);
         setUserHasInteracted(true);
         console.log('✅ Audio context auto-prepared');
@@ -156,6 +158,7 @@ function App() {
       
       try {
         await prepareAudioContext();
+        await prepareAudioFeedback(); // Prepare audio feedback
         setAudioContextReady(true);
         console.log('✅ Audio context prepared');
         setError(null); // Clear any previous audio errors
@@ -248,6 +251,9 @@ function App() {
     setIsProcessing(true);
     setError(null);
 
+    // Play processing start sound
+    await playProcessingStartSound();
+
     // Stop any currently playing audio
     stopAudio();
 
@@ -272,6 +278,9 @@ function App() {
       console.log('🔊 Converting to speech...');
       const audioBuffer = await synthesizeSpeech(aiText);
       
+      // Play success sound
+      await playSuccessSound();
+      
       // Auto-play response with haptic feedback
       if ('vibrate' in navigator) {
         navigator.vibrate([100, 50, 100]);
@@ -285,6 +294,9 @@ function App() {
       } catch (audioError) {
         console.error('❌ Audio playback failed:', audioError);
         setIsPlayingAudio(false);
+        
+        // Play error sound
+        await playErrorSound();
         
         // Show user-friendly error for audio issues
         if (audioError instanceof Error) {
@@ -302,6 +314,9 @@ function App() {
       
     } catch (error) {
       console.error('❌ Error processing message:', error);
+      
+      // Play error sound
+      await playErrorSound();
       
       // Provide more specific error messages
       if (error instanceof Error) {
@@ -348,6 +363,7 @@ function App() {
       await startListening();
     } catch (error) {
       console.error('❌ Error starting voice recognition:', error);
+      await playErrorSound(); // Play error sound
       if (error instanceof Error) {
         setError(error.message);
       } else {
