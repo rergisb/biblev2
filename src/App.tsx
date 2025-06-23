@@ -7,7 +7,14 @@ import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
 import { generateGeminiResponse } from './services/geminiService';
-import { playProcessingStartSound, playSuccessSound, playErrorSound, prepareAudioFeedback } from './services/audioFeedbackService';
+import { 
+  startRhythmicPulses, 
+  stopRhythmicPulses, 
+  playProcessingStartSound, 
+  playSuccessSound, 
+  playErrorSound, 
+  prepareAudioFeedback 
+} from './services/audioFeedbackService';
 
 interface Message {
   id: string;
@@ -251,8 +258,9 @@ function App() {
     setIsProcessing(true);
     setError(null);
 
-    // Play processing start sound
+    // Play initial processing sound and start rhythmic pulses
     await playProcessingStartSound();
+    await startRhythmicPulses();
 
     // Stop any currently playing audio
     stopAudio();
@@ -271,15 +279,15 @@ function App() {
       const aiText = await generateGeminiResponse(userText);
       console.log('✅ Gemini response:', aiText);
       
+      // Stop pulses before playing AI response
+      stopRhythmicPulses();
+      
       // Add AI response to chat
       addMessage(aiText, false);
       
       // Convert AI response to speech
       console.log('🔊 Converting to speech...');
       const audioBuffer = await synthesizeSpeech(aiText);
-      
-      // Play success sound
-      await playSuccessSound();
       
       // Auto-play response with haptic feedback
       if ('vibrate' in navigator) {
@@ -315,6 +323,9 @@ function App() {
     } catch (error) {
       console.error('❌ Error processing message:', error);
       
+      // Stop pulses on error
+      stopRhythmicPulses();
+      
       // Play error sound
       await playErrorSound();
       
@@ -331,6 +342,8 @@ function App() {
         setError('Connection error. Please check your network and try again.');
       }
     } finally {
+      // Ensure pulses are stopped and processing flag is cleared
+      stopRhythmicPulses();
       processingRef.current = false;
       setIsProcessing(false);
     }
@@ -341,6 +354,8 @@ function App() {
     stopCurrentAudio();
     setIsPlayingAudio(false);
     setIsPlayingGreeting(false);
+    // Also stop any rhythmic pulses
+    stopRhythmicPulses();
   };
 
   const handleVoiceStart = async () => {
@@ -651,13 +666,16 @@ function App() {
                   )}
                 </div>
               ) : isProcessing ? (
-                <div className="flex items-center justify-center gap-3">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                    <span className="text-gray-700 font-medium speakable-content">Seeking wisdom...</span>
                   </div>
-                  <span className="text-gray-700 font-medium speakable-content">Seeking wisdom...</span>
+                  <p className="text-gray-500 text-xs">🎵 Rhythmic pulses playing at 60 BPM</p>
                 </div>
               ) : isPlayingAudio ? (
                 <div className="space-y-1">

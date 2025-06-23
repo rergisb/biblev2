@@ -1,5 +1,7 @@
 // Audio feedback service for user interaction sounds
 let audioContext: AudioContext | null = null;
+let pulseInterval: NodeJS.Timeout | null = null;
+let isPlayingPulses = false;
 
 // Initialize audio context for sound effects
 const initializeAudioContext = async (): Promise<AudioContext> => {
@@ -26,8 +28,8 @@ const initializeAudioContext = async (): Promise<AudioContext> => {
   return audioContext;
 };
 
-// Generate a subtle pulse sound effect
-const createPulseSound = async (frequency: number = 800, duration: number = 0.3): Promise<void> => {
+// Generate a single pulse sound effect
+const createSinglePulse = async (frequency: number = 800, duration: number = 0.15): Promise<void> => {
   try {
     const context = await initializeAudioContext();
     
@@ -43,10 +45,10 @@ const createPulseSound = async (frequency: number = 800, duration: number = 0.3)
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(frequency, context.currentTime);
     
-    // Configure gain envelope for smooth pulse with higher volume
+    // Configure gain envelope for clear, audible pulse
     const now = context.currentTime;
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05); // Quick fade in with higher volume
+    gainNode.gain.linearRampToValueAtTime(0.25, now + 0.02); // Quick fade in with good volume
     gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration); // Smooth fade out
     
     // Start and stop the oscillator
@@ -59,10 +61,50 @@ const createPulseSound = async (frequency: number = 800, duration: number = 0.3)
   }
 };
 
-// Play processing start sound
+// Start rhythmic pulses at 60 BPM (1 pulse per second)
+export const startRhythmicPulses = async (): Promise<void> => {
+  try {
+    // Stop any existing pulses first
+    stopRhythmicPulses();
+    
+    console.log('🎵 Starting rhythmic pulses at 60 BPM');
+    isPlayingPulses = true;
+    
+    // Play first pulse immediately
+    await createSinglePulse(800, 0.15);
+    
+    // Set up interval for subsequent pulses (1000ms = 60 BPM)
+    pulseInterval = setInterval(async () => {
+      if (isPlayingPulses) {
+        await createSinglePulse(800, 0.15);
+      }
+    }, 1000);
+    
+  } catch (error) {
+    console.log('Audio feedback not available');
+    isPlayingPulses = false;
+  }
+};
+
+// Stop rhythmic pulses
+export const stopRhythmicPulses = (): void => {
+  if (pulseInterval) {
+    console.log('🔇 Stopping rhythmic pulses');
+    clearInterval(pulseInterval);
+    pulseInterval = null;
+  }
+  isPlayingPulses = false;
+};
+
+// Check if pulses are currently playing
+export const arePulsesPlaying = (): boolean => {
+  return isPlayingPulses;
+};
+
+// Play processing start sound (single pulse to indicate start)
 export const playProcessingStartSound = async (): Promise<void> => {
   try {
-    await createPulseSound(800, 0.3); // 800Hz, 0.3 seconds
+    await createSinglePulse(900, 0.2); // Slightly higher pitch for start
   } catch (error) {
     console.log('Audio feedback not available');
   }
@@ -71,7 +113,7 @@ export const playProcessingStartSound = async (): Promise<void> => {
 // Play success sound (higher pitch)
 export const playSuccessSound = async (): Promise<void> => {
   try {
-    await createPulseSound(1000, 0.2); // 1000Hz, 0.2 seconds
+    await createSinglePulse(1000, 0.2); // 1000Hz, 0.2 seconds
   } catch (error) {
     console.log('Audio feedback not available');
   }
@@ -80,7 +122,7 @@ export const playSuccessSound = async (): Promise<void> => {
 // Play error sound (lower but still audible pitch)
 export const playErrorSound = async (): Promise<void> => {
   try {
-    await createPulseSound(600, 0.4); // 600Hz, 0.4 seconds
+    await createSinglePulse(600, 0.4); // 600Hz, 0.4 seconds
   } catch (error) {
     console.log('Audio feedback not available');
   }
