@@ -27,7 +27,7 @@ const initializeAudioContext = async (): Promise<AudioContext> => {
 };
 
 // Generate a subtle pulse sound effect
-const createPulseSound = async (frequency: number = 500, duration: number = 0.3): Promise<void> => {
+const createPulseSound = async (frequency: number = 800, duration: number = 0.3): Promise<void> => {
   try {
     const context = await initializeAudioContext();
     
@@ -43,10 +43,10 @@ const createPulseSound = async (frequency: number = 500, duration: number = 0.3)
     oscillator.type = 'sine';
     oscillator.frequency.setValueAtTime(frequency, context.currentTime);
     
-    // Configure gain envelope for smooth pulse
+    // Configure gain envelope for smooth pulse with higher volume
     const now = context.currentTime;
     gainNode.gain.setValueAtTime(0, now);
-    gainNode.gain.linearRampToValueAtTime(0.1, now + 0.05); // Quick fade in
+    gainNode.gain.linearRampToValueAtTime(0.3, now + 0.05); // Quick fade in with higher volume
     gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration); // Smooth fade out
     
     // Start and stop the oscillator
@@ -62,25 +62,25 @@ const createPulseSound = async (frequency: number = 500, duration: number = 0.3)
 // Play processing start sound
 export const playProcessingStartSound = async (): Promise<void> => {
   try {
-    await createPulseSound(500, 0.3); // 500Hz, 0.3 seconds
+    await createPulseSound(800, 0.3); // 800Hz, 0.3 seconds
   } catch (error) {
     console.log('Audio feedback not available');
   }
 };
 
-// Play success sound (slightly higher pitch)
+// Play success sound (higher pitch)
 export const playSuccessSound = async (): Promise<void> => {
   try {
-    await createPulseSound(600, 0.2); // 600Hz, 0.2 seconds
+    await createPulseSound(1000, 0.2); // 1000Hz, 0.2 seconds
   } catch (error) {
     console.log('Audio feedback not available');
   }
 };
 
-// Play error sound (slightly lower pitch)
+// Play error sound (lower but still audible pitch)
 export const playErrorSound = async (): Promise<void> => {
   try {
-    await createPulseSound(400, 0.4); // 400Hz, 0.4 seconds
+    await createPulseSound(600, 0.4); // 600Hz, 0.4 seconds
   } catch (error) {
     console.log('Audio feedback not available');
   }
