@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Square, MessageCircle } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
+import { ChatDisplay } from './components/ChatDisplay';
 import { SEOOptimization } from './components/SEOOptimization';
 import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
@@ -43,6 +44,7 @@ function App() {
   const [pendingTranscript, setPendingTranscript] = useState<string>('');
   const [userHasInteracted, setUserHasInteracted] = useState(false);
   const [audioContextReady, setAudioContextReady] = useState(false);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   
   // Chat history state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -232,17 +234,28 @@ function App() {
     }
   }, [isListening, pendingTranscript, confidence, isMobile]);
 
-  const addMessage = (text: string, isUser: boolean, confidence?: number) => {
+  const addMessage = (text: string, isUser: boolean, confidence?: number, audioBuffer?: ArrayBuffer) => {
     const newMessage: Message = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       text,
       isUser,
       timestamp: new Date(),
-      confidence
+      confidence,
+      audioBuffer
     };
     
     setMessages(prev => [...prev, newMessage]);
     return newMessage;
+  };
+
+  const updateMessageWithAudio = (messageId: string, audioBuffer: ArrayBuffer) => {
+    setMessages(prev => 
+      prev.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, audioBuffer }
+          : msg
+      )
+    );
   };
 
   const handleUserMessage = async (userText: string, confidenceScore?: number) => {
@@ -282,12 +295,13 @@ function App() {
       // Stop pulses before playing AI response
       stopRhythmicPulses();
       
-      // Add AI response to chat
-      addMessage(aiText, false);
-      
       // Convert AI response to speech
       console.log('🔊 Converting to speech...');
       const audioBuffer = await synthesizeSpeech(aiText);
+      
+      // Add AI response to chat WITH audio buffer for caching
+      const aiMessage = addMessage(aiText, false, undefined, audioBuffer);
+      console.log('💾 Audio cached for message:', aiMessage.id);
       
       // Auto-play response with haptic feedback
       if ('vibrate' in navigator) {
@@ -295,13 +309,16 @@ function App() {
       }
       
       setIsPlayingAudio(true);
+      setPlayingMessageId(aiMessage.id);
       
       try {
         await playAudioBuffer(audioBuffer);
         setIsPlayingAudio(false);
+        setPlayingMessageId(null);
       } catch (audioError) {
         console.error('❌ Audio playback failed:', audioError);
         setIsPlayingAudio(false);
+        setPlayingMessageId(null);
         
         // Play error sound
         await playErrorSound();
@@ -349,11 +366,50 @@ function App() {
     }
   };
 
+  const handlePlayMessageAudio = async (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message || message.isUser) return;
+
+    // Stop any currently playing audio
+    stopAudio();
+
+    setPlayingMessageId(messageId);
+    setIsPlayingAudio(true);
+
+    try {
+      let audioBuffer = message.audioBuffer;
+
+      if (audioBuffer) {
+        // Use cached audio - no API call needed!
+        console.log('🎵 Playing cached audio for message:', messageId);
+        await playAudioBuffer(audioBuffer);
+      } else {
+        // Generate audio and cache it
+        console.log('🔊 Generating and caching audio for message:', messageId);
+        audioBuffer = await synthesizeSpeech(message.text);
+        
+        // Update message with cached audio
+        updateMessageWithAudio(messageId, audioBuffer);
+        
+        // Play the audio
+        await playAudioBuffer(audioBuffer);
+      }
+    } catch (error) {
+      console.error('❌ Error playing message audio:', error);
+      await playErrorSound();
+      setError('Failed to play audio. Please try again.');
+    } finally {
+      setIsPlayingAudio(false);
+      setPlayingMessageId(null);
+    }
+  };
+
   const stopAudio = () => {
     // Stop the global audio
     stopCurrentAudio();
     setIsPlayingAudio(false);
     setIsPlayingGreeting(false);
+    setPlayingMessageId(null);
     // Also stop any rhythmic pulses
     stopRhythmicPulses();
   };
@@ -727,6 +783,19 @@ function App() {
           {/* Bottom Spacing */}
           <div className="h-8"></div>
         </div>
+
+        {/* Chat Display - Shows conversation history */}
+        {messages.length > 0 && (
+          <div className="fixed bottom-6 left-0 right-0 z-20 pointer-events-none" data-no-main-click>
+            <div className="pointer-events-auto">
+              <ChatDisplay
+                messages={messages}
+                onPlayMessageAudio={handlePlayMessageAudio}
+                playingMessageId={playingMessageId}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Chat History Modal */}
         <ChatHistory

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, MessageCircle, Volume2, Zap } from 'lucide-react';
+import { User, MessageCircle, Volume2, Zap, Download } from 'lucide-react';
 
 interface ChatMessageProps {
   message: string;
@@ -8,6 +8,7 @@ interface ChatMessageProps {
   confidence?: number;
   onPlayAudio?: () => void;
   isPlaying?: boolean;
+  hasAudioCache?: boolean;
 }
 
 export const ChatMessage: React.FC<ChatMessageProps> = ({
@@ -16,33 +17,34 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   timestamp,
   confidence,
   onPlayAudio,
-  isPlaying
+  isPlaying,
+  hasAudioCache = false
 }) => {
   return (
-    <div className={`flex gap-4 p-6 rounded-3xl border transition-all duration-500 hover:scale-[1.02] ${
+    <div className={`flex gap-3 p-4 rounded-2xl border transition-all duration-300 hover:scale-[1.01] ${
       isUser 
-        ? 'bg-gray-50 border-gray-200 ml-16' 
-        : 'bg-white border-gray-300 mr-16 shadow-sm'
+        ? 'bg-gray-50 border-gray-200 ml-8' 
+        : 'bg-white border-gray-300 mr-8 shadow-sm'
     }`}>
-      <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center shadow-sm ${
+      <div className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${
         isUser 
           ? 'bg-gray-300' 
           : 'bg-gray-800'
       }`}>
         {isUser ? (
-          <User className="w-6 h-6 text-gray-700" />
+          <User className="w-5 h-5 text-gray-700" />
         ) : (
-          <MessageCircle className="w-6 h-6 text-white" />
+          <MessageCircle className="w-5 h-5 text-white" />
         )}
       </div>
       
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-2 mb-2">
           <span className="text-sm font-semibold text-gray-900">
             {isUser ? 'You' : 'Bible Companion'}
           </span>
           <span className="text-xs text-gray-500">
-            {timestamp.toLocaleTimeString()}
+            {timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           {confidence && (
             <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -51,22 +53,30 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             </div>
           )}
           {!isUser && onPlayAudio && (
-            <button
-              onClick={onPlayAudio}
-              disabled={isPlaying}
-              className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 ${
-                isPlaying 
-                  ? 'bg-gray-200 text-gray-700 animate-pulse' 
-                  : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
-              }`}
-              title="Play audio"
-            >
-              <Volume2 className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onPlayAudio}
+                disabled={isPlaying}
+                className={`p-1.5 rounded-lg transition-all duration-300 hover:scale-110 ${
+                  isPlaying 
+                    ? 'bg-gray-200 text-gray-700 animate-pulse' 
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}
+                title={hasAudioCache ? "Play cached audio" : "Generate and play audio"}
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+              </button>
+              {hasAudioCache && (
+                <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                  <Download className="w-3 h-3" />
+                  <span>Cached</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
         <div className="prose prose-gray max-w-none">
-          <p className="text-gray-800 leading-relaxed text-base whitespace-pre-wrap">
+          <p className="text-gray-800 leading-relaxed text-sm whitespace-pre-wrap">
             {message}
           </p>
         </div>
