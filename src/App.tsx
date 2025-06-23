@@ -407,7 +407,14 @@ function App() {
     stopAudio();
   };
 
-  const handleButtonClick = async () => {
+  // Main area click handler - unified interaction
+  const handleMainAreaClick = async (e: React.MouseEvent) => {
+    // Prevent clicks on header elements from triggering main area interaction
+    const target = e.target as HTMLElement;
+    if (target.closest('header') || target.closest('[data-no-main-click]')) {
+      return;
+    }
+
     // Handle first interaction
     await handleFirstInteraction();
     
@@ -417,34 +424,9 @@ function App() {
     } else if (isRecording) {
       // If recording, stop recording
       handleVoiceStop();
-    } else {
-      // If idle, start recording
+    } else if (!isProcessing) {
+      // If idle and not processing, start recording
       await handleVoiceStart();
-    }
-  };
-
-  const handleVisualizerClick = async () => {
-    // Handle first interaction
-    await handleFirstInteraction();
-    
-    // Only handle clicks when audio is playing
-    if (isPlayingAudio || isPlayingGreeting) {
-      handleStopAudio();
-    }
-  };
-
-  // Handle tap anywhere to start conversation
-  const handleScreenTap = async (e: React.MouseEvent) => {
-    // Handle first interaction
-    await handleFirstInteraction();
-    
-    // Only trigger if not already recording/processing and not clicking the button or visualizer
-    if (!isRecording && !isProcessing && !isPlayingAudio && !isPlayingGreeting) {
-      const target = e.target as HTMLElement;
-      // Don't trigger if clicking the actual button, config button, or visualizer
-      if (!target.closest('button') && !target.closest('.voice-visualizer') && !target.closest('header')) {
-        await handleVoiceStart();
-      }
     }
   };
 
@@ -510,12 +492,9 @@ function App() {
   return (
     <PerformanceOptimization>
       <SEOOptimization />
-      <div 
-        className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer"
-        onClick={handleScreenTap}
-      >
+      <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
         {/* Header */}
-        <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm" data-no-main-click>
           <div className="flex items-center justify-between px-6 py-4">
             {/* Left - Chat History Button */}
             <button
@@ -526,6 +505,7 @@ function App() {
               }}
               className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
               title="View Chat History"
+              data-no-main-click
             >
               <MessageCircle className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
               {messages.length > 0 && (
@@ -556,17 +536,19 @@ function App() {
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gray-50 rounded-full blur-3xl opacity-20"></div>
         </div>
 
-        {/* Main Content Container - adjusted for header */}
-        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24">
+        {/* Main Interactive Area - Single unified click handler */}
+        <div 
+          className={`relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24 transition-all duration-300 ${
+            isPlayingAudio || isPlayingGreeting || isRecording || isProcessing
+              ? 'cursor-pointer bg-gradient-to-br from-gray-50/30 to-gray-100/30'
+              : 'cursor-pointer hover:bg-gray-50/20'
+          }`}
+          onClick={handleMainAreaClick}
+        >
           
           {/* Central Visualizer Area */}
           <div className="flex-1 flex items-center justify-center w-full max-w-md">
-            <div 
-              className={`relative voice-visualizer ${
-                (isPlayingAudio || isPlayingGreeting) ? 'cursor-pointer' : ''
-              }`}
-              onClick={handleVisualizerClick}
-            >
+            <div className="relative">
               {/* Main Visualizer */}
               <VoiceVisualizer
                 isRecording={isRecording}
@@ -581,6 +563,8 @@ function App() {
                     ? 'bg-gray-800/10 shadow-lg shadow-gray-800/20' 
                     : isPlayingAudio || isPlayingGreeting
                     ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
+                    : isProcessing
+                    ? 'bg-gray-600/10 shadow-lg shadow-gray-600/20 animate-pulse'
                     : 'bg-gray-100/50'
                 }`}>
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -588,10 +572,18 @@ function App() {
                       ? 'bg-gray-800/20 animate-pulse' 
                       : isPlayingAudio || isPlayingGreeting
                       ? 'bg-gray-700/20 animate-pulse'
+                      : isProcessing
+                      ? 'bg-gray-600/20 animate-pulse'
                       : 'bg-gray-200/50'
                   }`}>
                     {isPlayingAudio || isPlayingGreeting ? (
-                      <Square className={`w-6 h-6 text-gray-700 fill-current pointer-events-auto cursor-pointer`} />
+                      <Square className="w-6 h-6 text-gray-700 fill-current" />
+                    ) : isProcessing ? (
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-gray-700 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-1.5 h-1.5 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
                     ) : (
                       <Mic className={`w-8 h-8 transition-colors duration-300 ${
                         isRecording 
@@ -603,10 +595,14 @@ function App() {
                 </div>
               </div>
               
-              {/* Click hint overlay for audio playing state - using gray instead of red */}
-              {(isPlayingAudio || isPlayingGreeting) && (
+              {/* Interactive state overlay */}
+              {(isPlayingAudio || isPlayingGreeting || isRecording || isProcessing) && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse"></div>
+                  <div className={`absolute inset-0 rounded-full animate-pulse ${
+                    isRecording ? 'bg-gray-800/10' :
+                    isPlayingAudio || isPlayingGreeting ? 'bg-gray-700/10' :
+                    isProcessing ? 'bg-gray-600/10' : ''
+                  }`}></div>
                 </div>
               )}
             </div>
@@ -650,7 +646,7 @@ function App() {
                     <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
                     <p className="text-gray-700 font-medium speakable-content">Welcome to your Bible companion...</p>
                   </div>
-                  <p className="text-gray-500 text-xs">Tap the center or button to stop</p>
+                  <p className="text-gray-500 text-xs">Tap anywhere to stop</p>
                 </div>
               ) : isRecording ? (
                 <div className="space-y-2">
@@ -664,6 +660,7 @@ function App() {
                   {pendingTranscript && (
                     <p className="text-gray-700 text-xs italic">"{pendingTranscript}"</p>
                   )}
+                  <p className="text-gray-500 text-xs">Tap anywhere to stop</p>
                 </div>
               ) : isProcessing ? (
                 <div className="space-y-2">
@@ -683,7 +680,7 @@ function App() {
                     <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
                     <span className="text-gray-700 font-medium speakable-content">🔊 Speaking God's word...</span>
                   </div>
-                  <p className="text-gray-500 text-xs">Tap the center or button to stop and speak</p>
+                  <p className="text-gray-500 text-xs">Tap anywhere to stop and speak</p>
                 </div>
               ) : (
                 <div className="text-center">
@@ -692,7 +689,7 @@ function App() {
                   <p className="text-gray-500 text-xs">
                     {!userHasInteracted ? 
                       'Audio will start automatically' :
-                      (isMobile ? 'Tap the button and speak clearly' : 'Tap the button below to speak')
+                      'Tap anywhere to speak'
                     }
                   </p>
                   {isMobile && !userHasInteracted && (
@@ -705,53 +702,26 @@ function App() {
             </div>
           </div>
 
-          {/* Main Interaction Button */}
-          <div className="relative">
-            <button
-              onClick={handleButtonClick}
-              disabled={isProcessing}
-              className={`relative w-20 h-20 rounded-full transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-                isPlayingAudio || isPlayingGreeting
-                  ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
-                  : isRecording
-                  ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
-                  : 'bg-gray-800 hover:bg-gray-900 shadow-gray-800/30 hover:scale-105'
-              }`}
-              aria-label={
-                isPlayingAudio || isPlayingGreeting 
-                  ? 'Stop audio' 
-                  : isRecording 
-                  ? 'Stop recording' 
-                  : 'Start recording'
-              }
-            >
-              {/* Glow Effect */}
-              <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
-                isRecording || isPlayingAudio || isPlayingGreeting
-                  ? 'bg-gray-700/20 animate-ping'
-                  : 'bg-gray-800/20'
+          {/* Visual Interaction Hint */}
+          <div className="text-center">
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
+              isPlayingAudio || isPlayingGreeting || isRecording || isProcessing
+                ? 'bg-gray-200/50 text-gray-700'
+                : 'bg-gray-100/50 text-gray-600 hover:bg-gray-200/50'
+            }`}>
+              <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                isPlayingAudio || isPlayingGreeting ? 'bg-gray-700 animate-pulse' :
+                isRecording ? 'bg-gray-800 animate-pulse' :
+                isProcessing ? 'bg-gray-600 animate-pulse' :
+                'bg-gray-500'
               }`}></div>
-              
-              {/* Button Content */}
-              <div className="relative z-10 w-full h-full flex items-center justify-center">
-                {isPlayingAudio || isPlayingGreeting ? (
-                  <Square className="w-6 h-6 text-white fill-current" />
-                ) : isRecording ? (
-                  <div className="w-6 h-6 bg-white rounded-sm"></div>
-                ) : (
-                  <Mic className="w-8 h-8 text-white" />
-                )}
-              </div>
-            </button>
-
-            {/* Pulse Ring for Active States */}
-            {(isRecording || isPlayingAudio || isPlayingGreeting) && (
-              <div className={`absolute inset-0 rounded-full animate-ping ${
-                isRecording || isPlayingAudio || isPlayingGreeting
-                  ? 'bg-gray-700/30' 
-                  : 'bg-gray-700/30'
-              }`}></div>
-            )}
+              <span className="text-sm font-medium">
+                {isPlayingAudio || isPlayingGreeting ? 'Tap to stop audio' :
+                 isRecording ? 'Tap to stop recording' :
+                 isProcessing ? 'Processing...' :
+                 'Tap anywhere to start'}
+              </span>
+            </div>
           </div>
 
           {/* Bottom Spacing */}
