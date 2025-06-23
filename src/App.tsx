@@ -638,6 +638,28 @@ function App() {
               </div>
             )}
 
+            {/* Visual Interaction Hint - Moved above status messages */}
+            <div className="text-center">
+              <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
+                isPlayingAudio || isPlayingGreeting || isRecording || isProcessing
+                  ? 'bg-gray-200/50 text-gray-700'
+                  : 'bg-gray-100/50 text-gray-600 hover:bg-gray-200/50'
+              }`}>
+                <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  isPlayingAudio || isPlayingGreeting ? 'bg-gray-700 animate-pulse' :
+                  isRecording ? 'bg-gray-800 animate-pulse' :
+                  isProcessing ? 'bg-gray-600 animate-pulse' :
+                  'bg-gray-500'
+                }`}></div>
+                <span className="text-sm font-medium">
+                  {isPlayingAudio || isPlayingGreeting ? 'Tap to stop audio' :
+                   isRecording ? 'Tap to stop recording' :
+                   isProcessing ? 'Processing...' :
+                   'Tap anywhere to start'}
+                </span>
+              </div>
+            </div>
+
             {/* Status Messages */}
             <div className="text-center min-h-[60px] flex items-center justify-center">
               {isPlayingGreeting ? (
@@ -699,28 +721,6 @@ function App() {
                   )}
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Visual Interaction Hint */}
-          <div className="text-center">
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
-              isPlayingAudio || isPlayingGreeting || isRecording || isProcessing
-                ? 'bg-gray-200/50 text-gray-700'
-                : 'bg-gray-100/50 text-gray-600 hover:bg-gray-200/50'
-            }`}>
-              <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                isPlayingAudio || isPlayingGreeting ? 'bg-gray-700 animate-pulse' :
-                isRecording ? 'bg-gray-800 animate-pulse' :
-                isProcessing ? 'bg-gray-600 animate-pulse' :
-                'bg-gray-500'
-              }`}></div>
-              <span className="text-sm font-medium">
-                {isPlayingAudio || isPlayingGreeting ? 'Tap to stop audio' :
-                 isRecording ? 'Tap to stop recording' :
-                 isProcessing ? 'Processing...' :
-                 'Tap anywhere to start'}
-              </span>
             </div>
           </div>
 
