@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Settings, Square, Eye } from 'lucide-react';
+import { Mic, MicOff, Settings, Square, MessageCircle } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ApiConfigModal } from './components/ApiConfigModal';
 import { ChatHistory } from './components/ChatHistory';
@@ -491,7 +491,7 @@ function App() {
             className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
             title="View Chat History"
           >
-            <Eye className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
+            <MessageCircle className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
             {messages.length > 0 && (
               <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center">
                 <span className="text-xs text-white font-bold">{messages.length}</span>
