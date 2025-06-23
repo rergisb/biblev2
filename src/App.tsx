@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Square, MessageCircle } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
+import { SEOOptimization } from './components/SEOOptimization';
+import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
 import { generateGeminiResponse } from './services/geminiService';
@@ -447,286 +449,292 @@ function App() {
 
   if (!browserSupportsSpeechRecognition) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center p-6">
-        <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
-          <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-            <MicOff className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Browser Not Supported</h1>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
-          </p>
-          <p className="text-sm text-gray-600 mb-4">
-            On iOS, make sure you're using Safari and have microphone permissions enabled.
-          </p>
-          {isMobile && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
-              <p className="text-amber-800 text-sm">
-                📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
-              </p>
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+          <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <MicOff className="w-8 h-8 text-white" />
             </div>
-          )}
+            <h1 className="text-2xl font-bold text-gray-900 mb-4 speakable-content">Browser Not Supported</h1>
+            <p className="text-gray-700 leading-relaxed mb-4 speakable-content">
+              Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              On iOS, make sure you're using Safari and have microphone permissions enabled.
+            </p>
+            {isMobile && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+                <p className="text-amber-800 text-sm">
+                  📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </PerformanceOptimization>
     );
   }
 
   return (
-    <div 
-      className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer"
-      onClick={handleScreenTap}
-    >
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between px-6 py-4">
-          {/* Left - Chat History Button */}
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              await handleFirstInteraction();
-              setShowChatHistory(true);
-            }}
-            className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
-            title="View Chat History"
-          >
-            <MessageCircle className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
-            {messages.length > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center">
-                <span className="text-xs text-white font-bold">{messages.length}</span>
-              </div>
-            )}
-          </button>
+    <PerformanceOptimization>
+      <SEOOptimization />
+      <div 
+        className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer"
+        onClick={handleScreenTap}
+      >
+        {/* Header */}
+        <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between px-6 py-4">
+            {/* Left - Chat History Button */}
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                await handleFirstInteraction();
+                setShowChatHistory(true);
+              }}
+              className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
+              title="View Chat History"
+            >
+              <MessageCircle className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
+              {messages.length > 0 && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center">
+                  <span className="text-xs text-white font-bold">{messages.length}</span>
+                </div>
+              )}
+            </button>
 
-          {/* Center - Logo */}
-          <div className="flex items-center justify-center">
-            <img 
-              src="https://i.ibb.co/yj8Qp41/guidinglight-upscaled.png" 
-              alt="Guiding Light Logo" 
-              className="h-12 w-auto object-contain"
-            />
+            {/* Center - Logo */}
+            <div className="flex items-center justify-center">
+              <img 
+                src="https://i.ibb.co/yj8Qp41/guidinglight-upscaled.png" 
+                alt="Guiding Light - AI Bible Companion Logo" 
+                className="h-12 w-auto object-contain"
+              />
+            </div>
+
+            {/* Right - Empty space to maintain center alignment */}
+            <div className="w-[60px]"></div>
+          </div>
+        </header>
+
+        {/* Subtle Background Elements */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gray-100 rounded-full blur-3xl opacity-50"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gray-100 rounded-full blur-3xl opacity-30"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gray-50 rounded-full blur-3xl opacity-20"></div>
+        </div>
+
+        {/* Main Content Container - adjusted for header */}
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24">
+          
+          {/* Central Visualizer Area */}
+          <div className="flex-1 flex items-center justify-center w-full max-w-md">
+            <div 
+              className={`relative voice-visualizer ${
+                (isPlayingAudio || isPlayingGreeting) ? 'cursor-pointer' : ''
+              }`}
+              onClick={handleVisualizerClick}
+            >
+              {/* Main Visualizer */}
+              <VoiceVisualizer
+                isRecording={isRecording}
+                isPlaying={isPlayingAudio || isPlayingGreeting}
+                audioLevel={isRecording ? 0.8 : isPlayingAudio ? 0.6 : 0.1}
+              />
+              
+              {/* Central Status Indicator */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
+                  isRecording 
+                    ? 'bg-gray-800/10 shadow-lg shadow-gray-800/20' 
+                    : isPlayingAudio || isPlayingGreeting
+                    ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
+                    : 'bg-gray-100/50'
+                }`}>
+                  <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    isRecording 
+                      ? 'bg-gray-800/20 animate-pulse' 
+                      : isPlayingAudio || isPlayingGreeting
+                      ? 'bg-gray-700/20 animate-pulse'
+                      : 'bg-gray-200/50'
+                  }`}>
+                    {isPlayingAudio || isPlayingGreeting ? (
+                      <Square className={`w-6 h-6 text-gray-700 fill-current pointer-events-auto cursor-pointer`} />
+                    ) : (
+                      <Mic className={`w-8 h-8 transition-colors duration-300 ${
+                        isRecording 
+                          ? 'text-gray-800' 
+                          : 'text-gray-500'
+                      }`} />
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Click hint overlay for audio playing state - using gray instead of red */}
+              {(isPlayingAudio || isPlayingGreeting) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse"></div>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Right - Empty space to maintain center alignment */}
-          <div className="w-[60px]"></div>
-        </div>
-      </header>
+          {/* Status Text Area */}
+          <div className="w-full max-w-md space-y-4 mb-8">
+            {/* Error Display */}
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
+                <p className="text-red-800 text-sm text-center">{error}</p>
+                {error.includes('tap the screen') && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p className="text-blue-800 text-xs text-center">
+                      💡 <strong>Quick Fix:</strong> Tap anywhere on the screen, then try speaking again.
+                    </p>
+                  </div>
+                )}
+                {error.includes('permission') && isMobile && (
+                  <p className="text-red-700 text-xs text-center mt-2">
+                    📱 On mobile: Check browser settings → Site permissions → Microphone
+                  </p>
+                )}
+              </div>
+            )}
 
-      {/* Subtle Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gray-100 rounded-full blur-3xl opacity-50"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gray-100 rounded-full blur-3xl opacity-30"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gray-50 rounded-full blur-3xl opacity-20"></div>
-      </div>
+            {/* Audio Context Status */}
+            {userHasInteracted && !audioContextReady && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
+                <p className="text-amber-800 text-sm text-center">
+                  🔊 Preparing audio system...
+                </p>
+              </div>
+            )}
 
-      {/* Main Content Container - adjusted for header */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24">
-        
-        {/* Central Visualizer Area */}
-        <div className="flex-1 flex items-center justify-center w-full max-w-md">
-          <div 
-            className={`relative voice-visualizer ${
-              (isPlayingAudio || isPlayingGreeting) ? 'cursor-pointer' : ''
-            }`}
-            onClick={handleVisualizerClick}
-          >
-            {/* Main Visualizer */}
-            <VoiceVisualizer
-              isRecording={isRecording}
-              isPlaying={isPlayingAudio || isPlayingGreeting}
-              audioLevel={isRecording ? 0.8 : isPlayingAudio ? 0.6 : 0.1}
-            />
-            
-            {/* Central Status Indicator */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
-                isRecording 
-                  ? 'bg-gray-800/10 shadow-lg shadow-gray-800/20' 
-                  : isPlayingAudio || isPlayingGreeting
-                  ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
-                  : 'bg-gray-100/50'
-              }`}>
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isRecording 
-                    ? 'bg-gray-800/20 animate-pulse' 
-                    : isPlayingAudio || isPlayingGreeting
-                    ? 'bg-gray-700/20 animate-pulse'
-                    : 'bg-gray-200/50'
-                }`}>
-                  {isPlayingAudio || isPlayingGreeting ? (
-                    <Square className={`w-6 h-6 text-gray-700 fill-current pointer-events-auto cursor-pointer`} />
-                  ) : (
-                    <Mic className={`w-8 h-8 transition-colors duration-300 ${
-                      isRecording 
-                        ? 'text-gray-800' 
-                        : 'text-gray-500'
-                    }`} />
+            {/* Status Messages */}
+            <div className="text-center min-h-[60px] flex items-center justify-center">
+              {isPlayingGreeting ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
+                    <p className="text-gray-700 font-medium speakable-content">Welcome to your Bible companion...</p>
+                  </div>
+                  <p className="text-gray-500 text-xs">Tap the center or button to stop</p>
+                </div>
+              ) : isRecording ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 bg-gray-800 rounded-full animate-pulse"></div>
+                    <p className="text-gray-800 font-medium speakable-content">Listening...</p>
+                  </div>
+                  <p className="text-gray-600 text-sm speakable-content">
+                    {isMobile ? 'Speak clearly and wait for processing' : 'Share your heart or ask for guidance'}
+                  </p>
+                  {pendingTranscript && (
+                    <p className="text-gray-700 text-xs italic">"{pendingTranscript}"</p>
                   )}
                 </div>
-              </div>
-            </div>
-            
-            {/* Click hint overlay for audio playing state - using gray instead of red */}
-            {(isPlayingAudio || isPlayingGreeting) && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse"></div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Status Text Area */}
-        <div className="w-full max-w-md space-y-4 mb-8">
-          {/* Error Display */}
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
-              <p className="text-red-800 text-sm text-center">{error}</p>
-              {error.includes('tap the screen') && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                  <p className="text-blue-800 text-xs text-center">
-                    💡 <strong>Quick Fix:</strong> Tap anywhere on the screen, then try speaking again.
-                  </p>
-                </div>
-              )}
-              {error.includes('permission') && isMobile && (
-                <p className="text-red-700 text-xs text-center mt-2">
-                  📱 On mobile: Check browser settings → Site permissions → Microphone
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Audio Context Status */}
-          {userHasInteracted && !audioContextReady && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
-              <p className="text-amber-800 text-sm text-center">
-                🔊 Preparing audio system...
-              </p>
-            </div>
-          )}
-
-          {/* Status Messages */}
-          <div className="text-center min-h-[60px] flex items-center justify-center">
-            {isPlayingGreeting ? (
-              <div className="space-y-1">
+              ) : isProcessing ? (
                 <div className="flex items-center justify-center gap-3">
-                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
-                  <p className="text-gray-700 font-medium">Welcome to your Bible companion...</p>
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-gray-700 font-medium speakable-content">Seeking wisdom...</span>
                 </div>
-                <p className="text-gray-500 text-xs">Tap the center or button to stop</p>
-              </div>
-            ) : isRecording ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-pulse"></div>
-                  <p className="text-gray-800 font-medium">Listening...</p>
+              ) : isPlayingAudio ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
+                    <span className="text-gray-700 font-medium speakable-content">🔊 Speaking God's word...</span>
+                  </div>
+                  <p className="text-gray-500 text-xs">Tap the center or button to stop and speak</p>
                 </div>
-                <p className="text-gray-600 text-sm">
-                  {isMobile ? 'Speak clearly and wait for processing' : 'Share your heart or ask for guidance'}
-                </p>
-                {pendingTranscript && (
-                  <p className="text-gray-700 text-xs italic">"{pendingTranscript}"</p>
-                )}
-              </div>
-            ) : isProcessing ? (
-              <div className="flex items-center justify-center gap-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-                <span className="text-gray-700 font-medium">Seeking wisdom...</span>
-              </div>
-            ) : isPlayingAudio ? (
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
-                  <span className="text-gray-700 font-medium">🔊 Speaking God's word...</span>
-                </div>
-                <p className="text-gray-500 text-xs">Tap the center or button to stop and speak</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <p className="text-gray-800 font-medium mb-2">Ready for Bible guidance</p>
-                <p className="text-gray-600 text-sm mb-1">Ask for a verse or spiritual advice</p>
-                <p className="text-gray-500 text-xs">
-                  {!userHasInteracted ? 
-                    'Audio will start automatically' :
-                    (isMobile ? 'Tap the button and speak clearly' : 'Tap the button below to speak')
-                  }
-                </p>
-                {isMobile && !userHasInteracted && (
-                  <p className="text-gray-400 text-xs mt-1">
-                    📱 Voice greeting will play automatically
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Main Interaction Button */}
-        <div className="relative">
-          <button
-            onClick={handleButtonClick}
-            disabled={isProcessing}
-            className={`relative w-20 h-20 rounded-full transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-              isPlayingAudio || isPlayingGreeting
-                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
-                : isRecording
-                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
-                : 'bg-gray-800 hover:bg-gray-900 shadow-gray-800/30 hover:scale-105'
-            }`}
-            aria-label={
-              isPlayingAudio || isPlayingGreeting 
-                ? 'Stop audio' 
-                : isRecording 
-                ? 'Stop recording' 
-                : 'Start recording'
-            }
-          >
-            {/* Glow Effect */}
-            <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
-              isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-gray-700/20 animate-ping'
-                : 'bg-gray-800/20'
-            }`}></div>
-            
-            {/* Button Content */}
-            <div className="relative z-10 w-full h-full flex items-center justify-center">
-              {isPlayingAudio || isPlayingGreeting ? (
-                <Square className="w-6 h-6 text-white fill-current" />
-              ) : isRecording ? (
-                <div className="w-6 h-6 bg-white rounded-sm"></div>
               ) : (
-                <Mic className="w-8 h-8 text-white" />
+                <div className="text-center">
+                  <h1 className="text-gray-800 font-medium mb-2 speakable-content">Ready for Bible guidance</h1>
+                  <p className="text-gray-600 text-sm mb-1 speakable-content">Ask for a verse or spiritual advice</p>
+                  <p className="text-gray-500 text-xs">
+                    {!userHasInteracted ? 
+                      'Audio will start automatically' :
+                      (isMobile ? 'Tap the button and speak clearly' : 'Tap the button below to speak')
+                    }
+                  </p>
+                  {isMobile && !userHasInteracted && (
+                    <p className="text-gray-400 text-xs mt-1">
+                      📱 Voice greeting will play automatically
+                    </p>
+                  )}
+                </div>
               )}
             </div>
-          </button>
+          </div>
 
-          {/* Pulse Ring for Active States */}
-          {(isRecording || isPlayingAudio || isPlayingGreeting) && (
-            <div className={`absolute inset-0 rounded-full animate-ping ${
-              isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-gray-700/30' 
-                : 'bg-gray-700/30'
-            }`}></div>
-          )}
+          {/* Main Interaction Button */}
+          <div className="relative">
+            <button
+              onClick={handleButtonClick}
+              disabled={isProcessing}
+              className={`relative w-20 h-20 rounded-full transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
+                isPlayingAudio || isPlayingGreeting
+                  ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
+                  : isRecording
+                  ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
+                  : 'bg-gray-800 hover:bg-gray-900 shadow-gray-800/30 hover:scale-105'
+              }`}
+              aria-label={
+                isPlayingAudio || isPlayingGreeting 
+                  ? 'Stop audio' 
+                  : isRecording 
+                  ? 'Stop recording' 
+                  : 'Start recording'
+              }
+            >
+              {/* Glow Effect */}
+              <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
+                isRecording || isPlayingAudio || isPlayingGreeting
+                  ? 'bg-gray-700/20 animate-ping'
+                  : 'bg-gray-800/20'
+              }`}></div>
+              
+              {/* Button Content */}
+              <div className="relative z-10 w-full h-full flex items-center justify-center">
+                {isPlayingAudio || isPlayingGreeting ? (
+                  <Square className="w-6 h-6 text-white fill-current" />
+                ) : isRecording ? (
+                  <div className="w-6 h-6 bg-white rounded-sm"></div>
+                ) : (
+                  <Mic className="w-8 h-8 text-white" />
+                )}
+              </div>
+            </button>
+
+            {/* Pulse Ring for Active States */}
+            {(isRecording || isPlayingAudio || isPlayingGreeting) && (
+              <div className={`absolute inset-0 rounded-full animate-ping ${
+                isRecording || isPlayingAudio || isPlayingGreeting
+                  ? 'bg-gray-700/30' 
+                  : 'bg-gray-700/30'
+              }`}></div>
+            )}
+          </div>
+
+          {/* Bottom Spacing */}
+          <div className="h-8"></div>
         </div>
 
-        {/* Bottom Spacing */}
-        <div className="h-8"></div>
+        {/* Chat History Modal */}
+        <ChatHistory
+          isOpen={showChatHistory}
+          onClose={() => setShowChatHistory(false)}
+          sessions={chatSessions}
+          onLoadSession={handleLoadSession}
+          onDeleteSession={handleDeleteSession}
+          onNewConversation={handleNewConversation}
+        />
       </div>
-
-      {/* Chat History Modal */}
-      <ChatHistory
-        isOpen={showChatHistory}
-        onClose={() => setShowChatHistory(false)}
-        sessions={chatSessions}
-        onLoadSession={handleLoadSession}
-        onDeleteSession={handleDeleteSession}
-        onNewConversation={handleNewConversation}
-      />
-    </div>
+    </PerformanceOptimization>
   );
 }
 
