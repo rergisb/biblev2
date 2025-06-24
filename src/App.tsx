@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Square, MessageCircle } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
-import { ChatDisplay } from './components/ChatDisplay';
 import { SEOOptimization } from './components/SEOOptimization';
 import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
@@ -784,20 +783,7 @@ function App() {
           <div className="h-8"></div>
         </div>
 
-        {/* Chat Display - Shows conversation history */}
-        {messages.length > 0 && (
-          <div className="fixed bottom-6 left-0 right-0 z-20 pointer-events-none" data-no-main-click>
-            <div className="pointer-events-auto">
-              <ChatDisplay
-                messages={messages}
-                onPlayMessageAudio={handlePlayMessageAudio}
-                playingMessageId={playingMessageId}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Chat History Modal */}
+        {/* Chat History Modal - Only shows when explicitly opened */}
         <ChatHistory
           isOpen={showChatHistory}
           onClose={() => setShowChatHistory(false)}
