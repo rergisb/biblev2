@@ -12,11 +12,13 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
   const [error, setError] = useState<string | null>(null);
   const [hasUserTapped, setHasUserTapped] = useState(false);
   const [audioContextReady, setAudioContextReady] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   
   const { requestMicrophonePermission, microphonePermissionStatus, browserSupportsSpeechRecognition } = useSpeechRecognition();
 
   // Detect mobile devices
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // Debug logging
   useEffect(() => {
@@ -24,9 +26,12 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       currentStep,
       browserSupportsSpeechRecognition,
       microphonePermissionStatus,
-      hasUserTapped
+      hasUserTapped,
+      isMobile,
+      isIOS,
+      audioContextReady
     });
-  }, [currentStep, browserSupportsSpeechRecognition, microphonePermissionStatus, hasUserTapped]);
+  }, [currentStep, browserSupportsSpeechRecognition, microphonePermissionStatus, hasUserTapped, isMobile, isIOS, audioContextReady]);
 
   // Check browser support first
   useEffect(() => {
@@ -38,7 +43,45 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
     }
   }, [browserSupportsSpeechRecognition]);
 
-  // Handle the entire onboarding flow automatically with proper timing
+  // Enhanced mobile audio preparation
+  const prepareAudioForMobile = async (): Promise<boolean> => {
+    try {
+      console.log('📱 Preparing audio for mobile device...');
+      
+      // Initialize audio context with user gesture
+      await prepareAudioContext();
+      
+      // For iOS, we need to create a dummy audio element and play it to unlock audio
+      if (isIOS) {
+        console.log('🍎 iOS detected - unlocking audio context...');
+        
+        // Create a silent audio buffer to unlock the context
+        const silentAudio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
+        silentAudio.volume = 0.01;
+        silentAudio.muted = false;
+        
+        try {
+          await silentAudio.play();
+          console.log('✅ iOS audio context unlocked');
+          silentAudio.pause();
+          silentAudio.currentTime = 0;
+        } catch (iosError) {
+          console.warn('⚠️ iOS audio unlock failed:', iosError);
+        }
+      }
+      
+      setAudioContextReady(true);
+      console.log('✅ Mobile audio prepared successfully');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Failed to prepare mobile audio:', error);
+      setError('Audio setup failed. Please ensure your device volume is on and try again.');
+      return false;
+    }
+  };
+
+  // Enhanced onboarding flow with better mobile support
   const startOnboardingFlow = async () => {
     if (hasUserTapped) return;
     
@@ -48,30 +91,49 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
     try {
       console.log('🎬 Starting onboarding flow...');
       
-      // Step 1: Prepare audio context
-      if (!audioContextReady) {
-        console.log('🔊 Preparing audio context...');
-        await prepareAudioContext();
-        setAudioContextReady(true);
-        console.log('✅ Audio context prepared');
+      // Step 1: Prepare audio context with mobile-specific handling
+      console.log('🔊 Preparing audio context for mobile...');
+      const audioReady = await prepareAudioForMobile();
+      
+      if (!audioReady) {
+        throw new Error('Failed to prepare audio system');
       }
       
-      // Step 2: Play welcome message and wait for completion
+      // Step 2: Play welcome message with enhanced error handling
       setCurrentStep('playing-welcome');
+      setIsPlayingAudio(true);
       
       const welcomeMessage = "Welcome to My Guiding Light. A popup for microphone access will appear now. Please tap Allow when prompted.";
       console.log('🎤 Playing welcome message...');
       
-      const welcomeAudioBuffer = await synthesizeSpeech(welcomeMessage);
-      await playAudioBuffer(welcomeAudioBuffer); // Wait for completion
+      try {
+        const welcomeAudioBuffer = await synthesizeSpeech(welcomeMessage);
+        console.log('🔊 Audio buffer created, starting playback...');
+        
+        // Enhanced playback with mobile-specific handling
+        await playAudioBuffer(welcomeAudioBuffer);
+        console.log('✅ Welcome message completed successfully');
+        
+      } catch (audioError) {
+        console.error('❌ Audio playback failed:', audioError);
+        
+        // For mobile, show a visual message instead of failing
+        if (isMobile) {
+          console.log('📱 Mobile audio failed - showing visual message');
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Show visual message for 3 seconds
+        } else {
+          throw audioError;
+        }
+      } finally {
+        setIsPlayingAudio(false);
+      }
       
-      console.log('✅ Welcome message completed');
-      
-      // Step 3: Show permission popup after voice completes
+      // Step 3: Show permission popup after audio completes (or timeout)
       setCurrentStep('requesting-permission');
       
-      // Small delay to ensure voice has fully finished
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Longer delay for mobile to ensure audio has fully finished
+      const permissionDelay = isMobile ? 1000 : 500;
+      await new Promise(resolve => setTimeout(resolve, permissionDelay));
       
       console.log('🎙️ Requesting microphone permission...');
       const permissionGranted = await requestMicrophonePermission();
@@ -94,7 +156,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       
     } catch (error) {
       console.error('❌ Error in onboarding flow:', error);
-      setError('There was an issue setting up the voice assistant. Please refresh the page and try again.');
+      setIsPlayingAudio(false);
+      
+      // Provide mobile-specific error messages
+      if (isMobile && error instanceof Error && error.message.includes('audio')) {
+        setError('Audio setup failed. Please ensure your device is not in silent mode and try again.');
+      } else {
+        setError('There was an issue setting up the voice assistant. Please refresh the page and try again.');
+      }
       setCurrentStep('error');
     }
   };
@@ -102,6 +171,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
   const handleRetry = () => {
     setError(null);
     setHasUserTapped(false);
+    setAudioContextReady(false);
+    setIsPlayingAudio(false);
     setCurrentStep('welcome');
   };
 
@@ -143,12 +214,19 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
                 </button>
               </div>
               
-              {/* Minimal info for accessibility */}
+              {/* Mobile-specific instructions */}
               <div className="bg-gray-100 border-4 border-gray-300 rounded-2xl p-6">
                 <p className="text-gray-900 font-bold text-lg mb-2">
                   Voice-Activated Bible Companion
                 </p>
-                <p className="text-gray-800 text-base font-medium">
+                {isMobile && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mt-4">
+                    <p className="text-blue-800 text-sm font-medium">
+                      📱 <strong>Mobile Device:</strong> Ensure your device is not in silent mode for the best experience
+                    </p>
+                  </div>
+                )}
+                <p className="text-gray-800 text-base font-medium mt-2">
                   Tap anywhere to begin setup
                 </p>
               </div>
@@ -164,9 +242,9 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
                 <Volume2 className="w-16 h-16 text-white animate-pulse" />
               </div>
               
-              <h1 className="text-4xl font-bold text-gray-900 mb-6">Playing Welcome</h1>
+              <h1 className="text-4xl font-bold text-gray-900 mb-6">Welcome Message</h1>
               
-              <div className="bg-green-50 border-4 border-green-200 rounded-2xl p-6">
+              <div className="bg-green-50 border-4 border-green-200 rounded-2xl p-6 mb-6">
                 <div className="flex items-center justify-center gap-1 mb-4">
                   <div className="w-2 h-8 bg-green-600 rounded-full animate-pulse"></div>
                   <div className="w-2 h-12 bg-green-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
@@ -175,10 +253,25 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
                   <div className="w-2 h-8 bg-green-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
                 </div>
                 
-                <p className="text-green-800 text-lg font-medium">
-                  🎵 Playing welcome message...
+                <p className="text-green-800 text-lg font-medium mb-4">
+                  {isPlayingAudio ? '🎵 Playing welcome message...' : '📱 Preparing audio...'}
                 </p>
+                
+                {/* Show the actual message text for mobile users in case audio fails */}
+                <div className="bg-white border-2 border-green-300 rounded-xl p-4">
+                  <p className="text-green-900 text-base font-medium">
+                    "Welcome to My Guiding Light. A popup for microphone access will appear now. Please tap Allow when prompted."
+                  </p>
+                </div>
               </div>
+              
+              {isMobile && (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <p className="text-blue-800 text-sm">
+                    📱 If you don't hear audio, that's normal on mobile. The message above shows what would be spoken.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -203,6 +296,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
                   <p>3. Check address bar if no popup</p>
                 </div>
               </div>
+              
+              {isMobile && (
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-4">
+                  <p className="text-blue-800 text-sm font-medium">
+                    📱 <strong>Mobile Tip:</strong> The permission popup might appear at the top of your screen or in the address bar
+                  </p>
+                </div>
+              )}
               
               <div className="flex items-center justify-center gap-2 text-orange-600 text-lg">
                 <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
@@ -269,6 +370,14 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
                   Continue Without Voice
                 </button>
               </div>
+
+              {isMobile && (
+                <div className="mt-6 bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <p className="text-blue-800 text-sm">
+                    📱 <strong>Mobile Troubleshooting:</strong> Make sure your device is not in silent mode, check volume settings, and ensure no other apps are using the microphone.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         );
