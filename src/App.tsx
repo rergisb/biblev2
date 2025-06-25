@@ -164,7 +164,7 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Single initialization effect with proper guards
+  // Enhanced initialization effect for mobile devices
   useEffect(() => {
     const initializeApp = async () => {
       // Prevent multiple initializations
@@ -187,19 +187,32 @@ function App() {
           console.log('✅ Audio context prepared');
         }
         
-        // Play greeting only if enabled and not already played
-        if (greetingEnabled && !greetingPlayingRef.current && !hasPlayedGreeting) {
-          greetingPlayingRef.current = true;
-          setIsPlayingGreeting(true);
-          
-          console.log('🎤 Playing welcome greeting...');
-          const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-          const audioBuffer = await synthesizeSpeech(greetingText);
-          
-          await playAudioBuffer(audioBuffer);
-          setHasPlayedGreeting(true);
-          console.log('✅ Greeting played successfully');
-        }
+        // For mobile devices, wait a bit longer before attempting greeting
+        const greetingDelay = isMobile ? 2000 : 1000;
+        
+        setTimeout(async () => {
+          // Play greeting only if enabled and not already played
+          if (greetingEnabled && !greetingPlayingRef.current && !hasPlayedGreeting) {
+            greetingPlayingRef.current = true;
+            setIsPlayingGreeting(true);
+            
+            console.log('🎤 Playing welcome greeting...');
+            const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+            
+            try {
+              const audioBuffer = await synthesizeSpeech(greetingText);
+              await playAudioBuffer(audioBuffer);
+              setHasPlayedGreeting(true);
+              console.log('✅ Greeting played successfully');
+            } catch (greetingError) {
+              console.warn('⚠️ Greeting playback failed (this is normal on mobile):', greetingError);
+              // Don't show error for greeting failures on mobile
+              if (!isMobile) {
+                setError('Audio initialization failed. Please tap anywhere to enable voice features.');
+              }
+            }
+          }
+        }, greetingDelay);
         
       } catch (error) {
         console.error('❌ App initialization failed:', error);
@@ -210,11 +223,13 @@ function App() {
         setUserHasInteracted(false);
         setAudioContextReady(false);
         
-        // Show helpful error message
-        if (error instanceof Error && error.message.includes('user interaction')) {
-          setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
-        } else {
-          setError('Audio initialization failed. Please tap anywhere to retry.');
+        // Show helpful error message only for non-mobile or critical errors
+        if (!isMobile || (error instanceof Error && !error.message.includes('user interaction'))) {
+          if (error instanceof Error && error.message.includes('user interaction')) {
+            setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
+          } else {
+            setError('Audio initialization failed. Please tap anywhere to retry.');
+          }
         }
       } finally {
         greetingPlayingRef.current = false;
@@ -223,9 +238,9 @@ function App() {
     };
 
     // Only initialize once after a short delay
-    const timer = setTimeout(initializeApp, 1000);
+    const timer = setTimeout(initializeApp, 1500);
     return () => clearTimeout(timer);
-  }, [browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, microphonePermissionStatus]);
+  }, [browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, microphonePermissionStatus, isMobile]);
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
@@ -837,6 +852,15 @@ function App() {
               </div>
             )}
 
+            {/* Mobile-specific audio notice */}
+            {isMobile && !userHasInteracted && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
+                <p className="text-blue-800 text-sm text-center">
+                  📱 <strong>Mobile Device:</strong> Tap anywhere to enable audio and voice features
+                </p>
+              </div>
+            )}
+
             {/* Visual Interaction Hint - Moved above status messages */}
             <div className="text-center">
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
@@ -909,13 +933,14 @@ function App() {
                   <p className="text-gray-600 text-sm mb-1 speakable-content">Ask for a verse or spiritual advice</p>
                   <p className="text-gray-500 text-xs">
                     {!userHasInteracted ? 
-                      (greetingEnabled ? 'Audio will start automatically' : 'Tap anywhere to speak') :
+                      (isMobile ? 'Tap anywhere to enable audio and speak' : 
+                       greetingEnabled ? 'Audio will start automatically' : 'Tap anywhere to speak') :
                       'Tap anywhere to speak'
                     }
                   </p>
-                  {isMobile && !userHasInteracted && greetingEnabled && (
+                  {isMobile && !userHasInteracted && (
                     <p className="text-gray-400 text-xs mt-1">
-                      📱 Voice greeting will play automatically
+                      📱 Mobile browsers require user interaction for audio
                     </p>
                   )}
                 </div>

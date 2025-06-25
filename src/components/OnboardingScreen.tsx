@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, Volume2, AlertCircle } from 'lucide-react';
+import { Mic, Volume2, AlertCircle, VolumeX, Play } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { synthesizeSpeech, playAudioBuffer, prepareAudioContext } from '../services/elevenLabsService';
@@ -10,13 +10,17 @@ interface OnboardingScreenProps {
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboardingComplete }) => {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useLocalStorage('has-completed-onboarding', false);
-  const [currentStep, setCurrentStep] = useState<'initial' | 'preparing-popup' | 'requesting-permission' | 'completed' | 'error'>('initial');
+  const [currentStep, setCurrentStep] = useState<'initial' | 'audio-prompt' | 'preparing-popup' | 'requesting-permission' | 'completed' | 'error'>('initial');
   const [error, setError] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [hasUserTapped, setHasUserTapped] = useState(false);
-  const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
+  const [audioContextReady, setAudioContextReady] = useState(false);
   
   const { requestMicrophonePermission, microphonePermissionStatus, browserSupportsSpeechRecognition } = useSpeechRecognition();
+
+  // Detect mobile devices
+  const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // If onboarding is already completed, immediately proceed to main app
   useEffect(() => {
@@ -34,86 +38,68 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       return;
     }
 
-    // Start with the initial screen
-    setCurrentStep('initial');
-  }, [hasCompletedOnboarding, onOnboardingComplete, browserSupportsSpeechRecognition]);
+    // Start with the initial screen, but show audio prompt for mobile
+    if (isMobile) {
+      setCurrentStep('audio-prompt');
+    } else {
+      setCurrentStep('initial');
+    }
+  }, [hasCompletedOnboarding, onOnboardingComplete, browserSupportsSpeechRecognition, isMobile]);
 
-  // Auto-play welcome message when component mounts
-  useEffect(() => {
-    const autoPlayWelcome = async () => {
-      if (hasAutoPlayed || hasCompletedOnboarding || !browserSupportsSpeechRecognition) {
-        return;
-      }
-
-      setHasAutoPlayed(true);
-      
-      try {
-        console.log('🎤 Auto-playing welcome message...');
-        setIsPlayingAudio(true);
-
-        // Prepare audio context
-        await prepareAudioContext();
-
-        const welcomeMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
-        const audioBuffer = await synthesizeSpeech(welcomeMessage);
-        await playAudioBuffer(audioBuffer);
-        
-        console.log('✅ Welcome message played successfully');
-      } catch (error) {
-        console.warn('⚠️ Auto-play failed (this is normal on some devices):', error);
-        // Don't show error for auto-play failure - it's expected on many devices
-      } finally {
-        setIsPlayingAudio(false);
-      }
-    };
-
-    // Small delay to ensure component is fully mounted
-    const timer = setTimeout(autoPlayWelcome, 500);
-    return () => clearTimeout(timer);
-  }, [hasAutoPlayed, hasCompletedOnboarding, browserSupportsSpeechRecognition]);
-
-  const handleInitialTap = async () => {
-    if (hasUserTapped) return;
-    
-    setHasUserTapped(true);
-    
+  const playWelcomeMessage = async () => {
     try {
-      console.log('🚀 User tapped, starting onboarding flow...');
+      console.log('🎤 Playing welcome message...');
+      setIsPlayingAudio(true);
       setError(null);
-
+      
       // Prepare audio context
-      console.log('🔊 Preparing audio context...');
-      await prepareAudioContext();
-
-      // Play the first message if not already playing
-      if (!isPlayingAudio) {
-        console.log('🎤 Playing first message...');
-        setIsPlayingAudio(true);
-
-        const firstMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
-        
-        try {
-          const audioBuffer = await synthesizeSpeech(firstMessage);
-          await playAudioBuffer(audioBuffer);
-          console.log('✅ First message played successfully');
-        } catch (audioError) {
-          console.warn('⚠️ Audio playback failed, continuing with next step:', audioError);
-        }
-
-        setIsPlayingAudio(false);
+      if (!audioContextReady) {
+        await prepareAudioContext();
+        setAudioContextReady(true);
       }
-
-      // Small delay before next step
-      await new Promise(resolve => setTimeout(resolve, 500));
-
+      
+      const welcomeMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
+      const audioBuffer = await synthesizeSpeech(welcomeMessage);
+      await playAudioBuffer(audioBuffer);
+      
+      console.log('✅ Welcome message played successfully');
+      
+      // Small delay before moving to next step
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Move to preparing popup step
       setCurrentStep('preparing-popup');
       
-      // Play the second message
-      console.log('🎤 Playing second message...');
-      setIsPlayingAudio(true);
+    } catch (error) {
+      console.error('❌ Failed to play welcome message:', error);
+      setError('Audio playback failed. Please check your device settings and try again.');
+    } finally {
+      setIsPlayingAudio(false);
+    }
+  };
 
-      const secondMessage = "A pop up for enable microphone will appear now, tap the Allow button";
+  const handleAudioPromptTap = async () => {
+    if (hasUserTapped) return;
+    
+    setHasUserTapped(true);
+    await playWelcomeMessage();
+  };
+
+  const handleContinueWithoutAudio = () => {
+    setCurrentStep('preparing-popup');
+  };
+
+  const handlePreparePopup = async () => {
+    try {
+      setIsPlayingAudio(true);
+      
+      // Ensure audio context is ready
+      if (!audioContextReady) {
+        await prepareAudioContext();
+        setAudioContextReady(true);
+      }
+      
+      const secondMessage = "A popup for microphone access will appear now. Please tap Allow when prompted.";
       
       try {
         const audioBuffer = await synthesizeSpeech(secondMessage);
@@ -153,7 +139,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       }
 
     } catch (error) {
-      console.error('❌ Onboarding flow error:', error);
+      console.error('❌ Error in prepare popup flow:', error);
       setError('There was an issue setting up the voice assistant. Please refresh the page and try again.');
       setCurrentStep('error');
       setIsPlayingAudio(false);
@@ -163,8 +149,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
   const handleRetry = () => {
     setError(null);
     setHasUserTapped(false);
-    setHasAutoPlayed(false);
-    setCurrentStep('initial');
+    setCurrentStep(isMobile ? 'audio-prompt' : 'initial');
   };
 
   const handleSkipOnboarding = () => {
@@ -180,7 +165,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
         return (
           <div 
             className="text-center cursor-pointer min-h-screen flex items-center justify-center"
-            onClick={handleInitialTap}
+            onClick={playWelcomeMessage}
           >
             <div className="w-full max-w-lg">
               <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -188,16 +173,71 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-6">Welcome to My Guiding Light</h1>
               <p className="text-gray-600 text-xl mb-8 leading-relaxed">
-                To begin, tap anywhere on the screen to enable voice interaction.
+                Your AI-powered Bible companion for spiritual guidance and scripture.
               </p>
               
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-md mx-auto mb-8">
-                <p className="text-blue-800 text-sm leading-relaxed">
-                  <strong>🎤 {isPlayingAudio ? 'Playing:' : 'Voice Message:'}</strong><br />
+                <div className="flex items-center justify-center gap-3 mb-3">
+                  <Volume2 className="w-5 h-5 text-blue-600" />
+                  <p className="text-blue-800 text-sm font-medium">Voice Message Ready</p>
+                </div>
+                
+                <p className="text-blue-800 text-sm leading-relaxed mb-3">
+                  <strong>Message:</strong><br />
                   "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction."
                 </p>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playWelcomeMessage();
+                  }}
+                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  Play Welcome Message
+                </button>
+              </div>
+
+              <div className="animate-bounce">
+                <div className="w-4 h-4 bg-gray-800 rounded-full mx-auto"></div>
+              </div>
+              <p className="text-gray-500 text-sm mt-4">Tap anywhere to start</p>
+            </div>
+          </div>
+        );
+
+      case 'audio-prompt':
+        return (
+          <div className="text-center min-h-screen flex items-center justify-center">
+            <div className="w-full max-w-lg">
+              <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Volume2 className="w-10 h-10 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-6">Welcome to My Guiding Light</h1>
+              <p className="text-gray-600 text-xl mb-8 leading-relaxed">
+                Your AI-powered Bible companion for spiritual guidance and scripture.
+              </p>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-md mx-auto mb-8">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  {isPlayingAudio ? (
+                    <Volume2 className="w-6 h-6 text-blue-600 animate-pulse" />
+                  ) : (
+                    <Play className="w-6 h-6 text-blue-600" />
+                  )}
+                  <p className="text-blue-800 font-medium">
+                    {isPlayingAudio ? 'Playing Welcome Message...' : 'Ready to Play Audio'}
+                  </p>
+                </div>
+                
+                <p className="text-blue-800 text-sm leading-relaxed mb-4">
+                  <strong>📱 Mobile Device Detected</strong><br />
+                  Tap the button below to hear the welcome message and continue setup.
+                </p>
+                
                 {isPlayingAudio && (
-                  <div className="flex items-center justify-center gap-1 mt-3">
+                  <div className="flex items-center justify-center gap-1 mb-4">
                     <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse"></div>
                     <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
                     <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
@@ -205,14 +245,43 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
                     <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
                   </div>
                 )}
+                
+                <button
+                  onClick={handleAudioPromptTap}
+                  disabled={isPlayingAudio || hasUserTapped}
+                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPlayingAudio ? (
+                    <>
+                      <Volume2 className="w-5 h-5 animate-pulse" />
+                      Playing Audio...
+                    </>
+                  ) : hasUserTapped ? (
+                    <>
+                      <Volume2 className="w-5 h-5" />
+                      Audio Played
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-5 h-5" />
+                      🔊 Play Welcome Message
+                    </>
+                  )}
+                </button>
+                
+                <button
+                  onClick={handleContinueWithoutAudio}
+                  className="w-full mt-3 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 text-sm"
+                >
+                  Continue Without Audio
+                </button>
               </div>
 
-              <div className="animate-bounce">
-                <div className="w-4 h-4 bg-gray-800 rounded-full mx-auto"></div>
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <p className="text-amber-800 text-xs leading-relaxed">
+                  <strong>📱 Why this step?</strong> Mobile browsers require user interaction before playing audio. This ensures you can hear the voice guidance throughout the app.
+                </p>
               </div>
-              <p className="text-gray-500 text-sm mt-4">
-                {isPlayingAudio ? 'Audio playing automatically...' : 'Tap anywhere to continue'}
-              </p>
             </div>
           </div>
         );
@@ -220,50 +289,64 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       case 'preparing-popup':
         return (
           <div className="text-center">
-            <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <Volume2 className={`w-10 h-10 text-white ${isPlayingAudio ? 'animate-pulse' : ''}`} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Preparing Microphone Setup</h1>
-            <p className="text-gray-600 text-lg mb-6">Please listen to the instructions...</p>
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-md mx-auto">
-              <p className="text-blue-800 text-sm leading-relaxed">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Setting Up Microphone</h1>
+            <p className="text-gray-600 text-lg mb-6">
+              {isPlayingAudio ? 'Please listen to the instructions...' : 'Ready to request microphone access'}
+            </p>
+            
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 max-w-md mx-auto mb-6">
+              <p className="text-green-800 text-sm leading-relaxed mb-4">
                 🔊 <strong>Audio Message:</strong><br />
-                "A pop up for enable microphone will appear now, tap the Allow button"
+                "A popup for microphone access will appear now. Please tap Allow when prompted."
               </p>
+              
+              {isPlayingAudio && (
+                <div className="flex items-center justify-center gap-1 mb-4">
+                  <div className="w-1 h-4 bg-green-600 rounded-full animate-pulse"></div>
+                  <div className="w-1 h-6 bg-green-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-1 h-4 bg-green-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-1 h-6 bg-green-700 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                  <div className="w-1 h-4 bg-green-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                </div>
+              )}
+              
+              <button
+                onClick={handlePreparePopup}
+                disabled={isPlayingAudio}
+                className="w-full px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors duration-200 font-medium disabled:opacity-50"
+              >
+                {isPlayingAudio ? 'Playing Instructions...' : 'Continue to Microphone Setup'}
+              </button>
             </div>
-            {isPlayingAudio && (
-              <div className="flex items-center justify-center gap-1 mt-4">
-                <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse"></div>
-                <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-                <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-              </div>
-            )}
           </div>
         );
 
       case 'requesting-permission':
         return (
           <div className="text-center">
-            <div className="w-20 h-20 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <div className="w-20 h-20 bg-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
               <Mic className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Microphone Permission</h1>
             <p className="text-gray-600 text-lg mb-6">Please tap "Allow" when prompted by your browser</p>
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 max-w-md mx-auto">
-              <p className="text-green-800 text-sm leading-relaxed mb-4">
+            
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 max-w-md mx-auto">
+              <p className="text-orange-800 text-sm leading-relaxed mb-4">
                 <strong>What to do:</strong>
               </p>
-              <ol className="text-green-700 text-sm text-left space-y-2">
+              <ol className="text-orange-700 text-sm text-left space-y-2">
                 <li>1. Look for a browser popup asking for microphone access</li>
                 <li>2. Click "Allow" or "Yes" to grant permission</li>
                 <li>3. If you don't see a popup, check your browser's address bar for a microphone icon</li>
               </ol>
             </div>
+            
             <div className="mt-6">
-              <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <div className="flex items-center justify-center gap-2 text-orange-600 text-sm">
+                <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
                 <span>Waiting for your response...</span>
               </div>
             </div>
