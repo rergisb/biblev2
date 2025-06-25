@@ -209,79 +209,78 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
 
       case 'audio-prompt':
         return (
-          <div className="text-center min-h-screen flex items-center justify-center">
+          <div className="text-center min-h-screen flex items-center justify-center px-4">
             <div className="w-full max-w-lg">
-              <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Volume2 className="w-10 h-10 text-white" />
+              {/* Large, prominent icon */}
+              <div className="w-32 h-32 bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl">
+                <Volume2 className="w-16 h-16 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-6">Welcome to My Guiding Light</h1>
-              <p className="text-gray-600 text-xl mb-8 leading-relaxed">
+              
+              <h1 className="text-4xl font-bold text-gray-900 mb-6 leading-tight">Welcome to My Guiding Light</h1>
+              <p className="text-gray-700 text-xl mb-8 leading-relaxed font-medium">
                 Your AI-powered Bible companion for spiritual guidance and scripture.
               </p>
               
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-md mx-auto mb-8">
-                <div className="flex items-center justify-center gap-3 mb-4">
-                  {isPlayingAudio ? (
-                    <Volume2 className="w-6 h-6 text-blue-600 animate-pulse" />
-                  ) : (
-                    <Play className="w-6 h-6 text-blue-600" />
-                  )}
-                  <p className="text-blue-800 font-medium">
-                    {isPlayingAudio ? 'Playing Welcome Message...' : 'Ready to Play Audio'}
-                  </p>
-                </div>
-                
-                <p className="text-blue-800 text-sm leading-relaxed mb-4">
-                  <strong>📱 Mobile Device Detected</strong><br />
-                  Tap the button below to hear the welcome message and continue setup.
-                </p>
-                
-                {isPlayingAudio && (
-                  <div className="flex items-center justify-center gap-1 mb-4">
-                    <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse"></div>
-                    <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-                    <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                  </div>
-                )}
-                
+              {/* Very large, high-contrast button for accessibility */}
+              <div className="mb-8">
                 <button
                   onClick={handleAudioPromptTap}
                   disabled={isPlayingAudio || hasUserTapped}
-                  className="w-full px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-32 bg-gray-900 hover:bg-black text-white rounded-3xl transition-all duration-300 font-bold text-2xl flex flex-col items-center justify-center gap-4 disabled:opacity-70 disabled:cursor-not-allowed shadow-2xl border-4 border-gray-800 hover:border-black transform hover:scale-105 active:scale-95"
+                  style={{ minHeight: '128px' }}
                 >
                   {isPlayingAudio ? (
                     <>
-                      <Volume2 className="w-5 h-5 animate-pulse" />
-                      Playing Audio...
+                      <Volume2 className="w-12 h-12 animate-pulse" />
+                      <span className="text-xl">🔊 Playing Audio...</span>
+                      <div className="flex gap-2">
+                        <div className="w-3 h-3 bg-white rounded-full animate-bounce"></div>
+                        <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
                     </>
                   ) : hasUserTapped ? (
                     <>
-                      <Volume2 className="w-5 h-5" />
-                      Audio Played
+                      <Volume2 className="w-12 h-12" />
+                      <span className="text-xl">✅ Audio Played</span>
                     </>
                   ) : (
                     <>
-                      <Play className="w-5 h-5" />
-                      🔊 Play Welcome Message
+                      <Play className="w-12 h-12" />
+                      <span className="text-xl">🔊 TAP TO PLAY AUDIO</span>
+                      <span className="text-lg font-normal">Enable voice features</span>
                     </>
                   )}
                 </button>
+              </div>
+              
+              {/* High contrast info box */}
+              <div className="bg-gray-100 border-4 border-gray-300 rounded-2xl p-6 mb-6">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">📱</span>
+                  </div>
+                  <p className="text-gray-900 font-bold text-lg">Mobile Device Detected</p>
+                </div>
                 
-                <button
-                  onClick={handleContinueWithoutAudio}
-                  className="w-full mt-3 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 text-sm"
-                >
-                  Continue Without Audio
-                </button>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-                <p className="text-amber-800 text-xs leading-relaxed">
-                  <strong>📱 Why this step?</strong> Mobile browsers require user interaction before playing audio. This ensures you can hear the voice guidance throughout the app.
+                <p className="text-gray-800 text-lg leading-relaxed mb-4 font-medium">
+                  Mobile browsers require user interaction before playing audio. Tap the large button above to enable voice features.
                 </p>
+                
+                <div className="bg-amber-100 border-2 border-amber-300 rounded-xl p-4">
+                  <p className="text-amber-900 text-base font-medium">
+                    <strong>♿ Accessibility:</strong> This app is designed for visually impaired users with large, high-contrast buttons and voice guidance.
+                  </p>
+                </div>
               </div>
+              
+              {/* Secondary option with high contrast */}
+              <button
+                onClick={handleContinueWithoutAudio}
+                className="w-full h-16 bg-gray-200 hover:bg-gray-300 text-gray-900 rounded-2xl transition-colors duration-200 font-bold text-lg border-2 border-gray-400 hover:border-gray-500"
+              >
+                Continue Without Audio (Not Recommended)
+              </button>
             </div>
           </div>
         );
