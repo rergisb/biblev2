@@ -9,6 +9,8 @@ interface SpeechRecognitionHook {
   resetTranscript: () => void;
   browserSupportsSpeechRecognition: boolean;
   error: string | null;
+  microphonePermissionStatus: 'unknown' | 'granted' | 'denied' | 'prompt';
+  requestMicrophonePermission: () => Promise<boolean>;
 }
 
 export const useSpeechRecognition = (): SpeechRecognitionHook => {
@@ -16,11 +18,12 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const [isListening, setIsListening] = useState(false);
   const [confidence, setConfidence] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [microphonePermissionStatus, setMicrophonePermissionStatus] = useState<'unknown' | 'granted' | 'denied' | 'prompt'>('unknown');
+  
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const finalTranscriptRef = useRef<string>('');
   const isStartingRef = useRef(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const hasPermissionRef = useRef(false);
 
   // Detect device type
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -46,17 +49,58 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     return hasWebkitSpeechRecognition || hasSpeechRecognition;
   })();
 
+  // Check microphone permission status
+  const checkMicrophonePermission = useCallback(async (): Promise<'unknown' | 'granted' | 'denied' | 'prompt'> => {
+    try {
+      if (!navigator.permissions) {
+        console.log('Permissions API not supported, checking via getUserMedia');
+        // Fallback for browsers without Permissions API
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach(track => track.stop());
+          return 'granted';
+        } catch (error) {
+          if (error instanceof Error && error.name === 'NotAllowedError') {
+            return 'denied';
+          }
+          return 'unknown';
+        }
+      }
+
+      const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      console.log('Microphone permission status:', permission.state);
+      
+      switch (permission.state) {
+        case 'granted':
+          return 'granted';
+        case 'denied':
+          return 'denied';
+        case 'prompt':
+          return 'prompt';
+        default:
+          return 'unknown';
+      }
+    } catch (error) {
+      console.error('Error checking microphone permission:', error);
+      return 'unknown';
+    }
+  }, []);
+
+  // Update permission status
+  const updatePermissionStatus = useCallback(async () => {
+    const status = await checkMicrophonePermission();
+    setMicrophonePermissionStatus(status);
+    console.log('Updated microphone permission status:', status);
+  }, [checkMicrophonePermission]);
+
   // Request microphone permission explicitly
   const requestMicrophonePermission = useCallback(async (): Promise<boolean> => {
-    if (hasPermissionRef.current) {
-      return true;
-    }
-
     try {
       console.log('Requesting microphone permission...');
       
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         console.warn('getUserMedia not supported');
+        setError('Microphone access not supported on this device');
         return false;
       }
 
@@ -77,17 +121,18 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         console.log('Stopped audio track:', track.label);
       });
       
-      hasPermissionRef.current = true;
+      // Update permission status
+      await updatePermissionStatus();
       setError(null);
       return true;
       
     } catch (permissionError) {
       console.error('Microphone permission error:', permissionError);
-      hasPermissionRef.current = false;
       
       if (permissionError instanceof Error) {
         if (permissionError.name === 'NotAllowedError') {
           setError('Microphone access denied. Please allow microphone access in your browser settings.');
+          setMicrophonePermissionStatus('denied');
         } else if (permissionError.name === 'NotFoundError') {
           setError('No microphone found. Please check your device has a microphone.');
         } else if (permissionError.name === 'NotReadableError') {
@@ -97,9 +142,15 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         }
       }
       
+      await updatePermissionStatus();
       return false;
     }
-  }, [isIOS]);
+  }, [isIOS, updatePermissionStatus]);
+
+  // Initialize permission status on mount
+  useEffect(() => {
+    updatePermissionStatus();
+  }, [updatePermissionStatus]);
 
   useEffect(() => {
     if (!browserSupportsSpeechRecognition) {
@@ -242,7 +293,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
           case 'not-allowed':
             console.error('❌ Speech recognition error:', event.error, event);
             setError('Microphone access denied. Please allow microphone access and try again.');
-            hasPermissionRef.current = false;
+            setMicrophonePermissionStatus('denied');
             break;
           case 'no-speech':
             console.log('ℹ️ No speech detected - this is normal');
@@ -330,11 +381,13 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     finalTranscriptRef.current = '';
     
     try {
-      // Request microphone permission first
-      const hasPermission = await requestMicrophonePermission();
-      if (!hasPermission) {
-        isStartingRef.current = false;
-        throw new Error('Microphone permission required');
+      // Check if we have permission first
+      if (microphonePermissionStatus !== 'granted') {
+        const hasPermission = await requestMicrophonePermission();
+        if (!hasPermission) {
+          isStartingRef.current = false;
+          throw new Error('Microphone permission required');
+        }
       }
       
       // Add a small delay for mobile devices to ensure permission is fully granted
@@ -373,7 +426,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       }
       throw error;
     }
-  }, [isListening, isMobile, requestMicrophonePermission]);
+  }, [isListening, isMobile, requestMicrophonePermission, microphonePermissionStatus]);
 
   const stopListening = useCallback(() => {
     if (!recognitionRef.current) {
@@ -414,6 +467,8 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     stopListening,
     resetTranscript,
     browserSupportsSpeechRecognition,
-    error
+    error,
+    microphonePermissionStatus,
+    requestMicrophonePermission
   };
 };

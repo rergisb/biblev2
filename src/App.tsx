@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Square, MessageCircle, Volume2, VolumeX } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
+import { OnboardingScreen } from './components/OnboardingScreen';
+import { MicrophoneSetup } from './components/MicrophoneSetup';
 import { SEOOptimization } from './components/SEOOptimization';
 import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
@@ -34,6 +36,11 @@ interface ChatSession {
 }
 
 function App() {
+  // Onboarding and setup states
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useLocalStorage('has-completed-onboarding', false);
+  const [showMainApp, setShowMainApp] = useState(false);
+
+  // Main app states
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,12 +77,106 @@ function App() {
     resetTranscript,
     browserSupportsSpeechRecognition,
     confidence,
-    error: speechError
+    error: speechError,
+    microphonePermissionStatus
   } = useSpeechRecognition();
 
   // Detect iOS for special handling
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Initialize app state based on onboarding completion
+  useEffect(() => {
+    if (hasCompletedOnboarding && microphonePermissionStatus === 'granted') {
+      setShowMainApp(true);
+    } else if (hasCompletedOnboarding && microphonePermissionStatus !== 'unknown') {
+      // Onboarding completed but permission not granted - show microphone setup
+      setShowMainApp(false);
+    }
+  }, [hasCompletedOnboarding, microphonePermissionStatus]);
+
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    console.log('✅ Onboarding completed');
+    setHasCompletedOnboarding(true);
+    if (microphonePermissionStatus === 'granted') {
+      setShowMainApp(true);
+    }
+  };
+
+  // Handle microphone permission granted
+  const handleMicrophonePermissionGranted = () => {
+    console.log('✅ Microphone permission granted');
+    setShowMainApp(true);
+  };
+
+  // Early return for onboarding flow
+  if (!hasCompletedOnboarding) {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <OnboardingScreen onOnboardingComplete={handleOnboardingComplete} />
+      </PerformanceOptimization>
+    );
+  }
+
+  // Early return for microphone setup (if onboarding completed but no mic access)
+  if (hasCompletedOnboarding && microphonePermissionStatus !== 'granted' && microphonePermissionStatus !== 'unknown') {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <MicrophoneSetup onPermissionGranted={handleMicrophonePermissionGranted} />
+      </PerformanceOptimization>
+    );
+  }
+
+  // Early return for browser compatibility
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+          <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <MicOff className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4 speakable-content">Browser Not Supported</h1>
+            <p className="text-gray-700 leading-relaxed mb-4 speakable-content">
+              Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              On iOS, make sure you're using Safari and have microphone permissions enabled.
+            </p>
+            {isMobile && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+                <p className="text-amber-800 text-sm">
+                  📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </PerformanceOptimization>
+    );
+  }
+
+  // Don't render main app until we have proper permission status
+  if (!showMainApp) {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <Mic className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading Bible Companion</h1>
+            <p className="text-gray-600">Preparing your voice assistant...</p>
+          </div>
+        </div>
+      </PerformanceOptimization>
+    );
+  }
 
   // Sync recording state with speech recognition
   useEffect(() => {
@@ -124,7 +225,7 @@ function App() {
   useEffect(() => {
     const initializeApp = async () => {
       // Prevent multiple initializations
-      if (greetingInitializedRef.current || !browserSupportsSpeechRecognition) {
+      if (greetingInitializedRef.current || !browserSupportsSpeechRecognition || microphonePermissionStatus !== 'granted') {
         return;
       }
       
@@ -181,7 +282,7 @@ function App() {
     // Only initialize once after a short delay
     const timer = setTimeout(initializeApp, 1000);
     return () => clearTimeout(timer);
-  }, [browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled]);
+  }, [browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, microphonePermissionStatus]);
 
   // Fallback interaction handler for manual initialization
   const handleFirstInteraction = async () => {
@@ -552,35 +653,6 @@ function App() {
       audioContextInitializedRef.current = false;
     };
   }, []);
-
-  if (!browserSupportsSpeechRecognition) {
-    return (
-      <PerformanceOptimization>
-        <SEOOptimization />
-        <div className="min-h-screen bg-white flex items-center justify-center p-6">
-          <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-              <MicOff className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4 speakable-content">Browser Not Supported</h1>
-            <p className="text-gray-700 leading-relaxed mb-4 speakable-content">
-              Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
-            </p>
-            <p className="text-sm text-gray-600 mb-4">
-              On iOS, make sure you're using Safari and have microphone permissions enabled.
-            </p>
-            {isMobile && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
-                <p className="text-amber-800 text-sm">
-                  📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </PerformanceOptimization>
-    );
-  }
 
   return (
     <PerformanceOptimization>
