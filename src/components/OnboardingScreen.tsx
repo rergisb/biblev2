@@ -9,7 +9,6 @@ interface OnboardingScreenProps {
 }
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboardingComplete }) => {
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useLocalStorage('has-completed-onboarding', false);
   const [currentStep, setCurrentStep] = useState<'welcome' | 'playing-welcome' | 'playing-popup-message' | 'requesting-permission' | 'completed' | 'error'>('welcome');
   const [error, setError] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -22,22 +21,26 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  // If onboarding is already completed, immediately proceed to main app
+  // Debug logging
   useEffect(() => {
-    if (hasCompletedOnboarding) {
-      console.log('✅ Onboarding already completed, proceeding to main app');
-      onOnboardingComplete();
-      return;
-    }
+    console.log('🎬 OnboardingScreen mounted:', {
+      currentStep,
+      browserSupportsSpeechRecognition,
+      microphonePermissionStatus,
+      isMobile,
+      isIOS
+    });
+  }, [currentStep, browserSupportsSpeechRecognition, microphonePermissionStatus, isMobile, isIOS]);
 
-    // Check browser support first
+  // Check browser support first
+  useEffect(() => {
     if (!browserSupportsSpeechRecognition) {
       console.log('❌ Browser does not support speech recognition');
       setError('Your browser does not support voice recognition. Please use Chrome, Safari, or another modern browser.');
       setCurrentStep('error');
       return;
     }
-  }, [hasCompletedOnboarding, onOnboardingComplete, browserSupportsSpeechRecognition]);
+  }, [browserSupportsSpeechRecognition]);
 
   // Handle the entire onboarding flow automatically
   const startOnboardingFlow = async () => {
@@ -51,8 +54,10 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       
       // Step 1: Prepare audio context
       if (!audioContextReady) {
+        console.log('🔊 Preparing audio context...');
         await prepareAudioContext();
         setAudioContextReady(true);
+        console.log('✅ Audio context prepared');
       }
       
       // Step 2: Play welcome message
@@ -92,13 +97,11 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
         console.log('✅ Microphone permission granted');
         setCurrentStep('completed');
         
-        // Mark onboarding as completed
-        setHasCompletedOnboarding(true);
-        
         // Small delay before transitioning
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Step 5: Proceed to main app
+        // Step 5: Complete onboarding and proceed to main app
+        console.log('🎯 Completing onboarding...');
         onOnboardingComplete();
       } else {
         console.log('❌ Microphone permission denied');
@@ -122,7 +125,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
 
   const handleSkipOnboarding = () => {
     console.log('⏭️ User chose to skip onboarding');
-    setHasCompletedOnboarding(true);
     onOnboardingComplete();
   };
 

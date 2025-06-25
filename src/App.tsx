@@ -38,7 +38,7 @@ interface ChatSession {
 function App() {
   // ALL HOOKS MUST BE DECLARED FIRST - BEFORE ANY CONDITIONAL RETURNS
   
-  // Onboarding and setup states
+  // Onboarding and setup states - FORCE ONBOARDING FOR DEBUGGING
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useLocalStorage('has-completed-onboarding', false);
   const [showMainApp, setShowMainApp] = useState(false);
 
@@ -111,15 +111,40 @@ function App() {
 
   // ALL useEffect HOOKS MUST BE DECLARED HERE - BEFORE CONDITIONAL RETURNS
 
+  // Debug logging for onboarding state
+  useEffect(() => {
+    console.log('🔍 Onboarding Debug:', {
+      hasCompletedOnboarding,
+      microphonePermissionStatus,
+      showMainApp,
+      browserSupportsSpeechRecognition
+    });
+  }, [hasCompletedOnboarding, microphonePermissionStatus, showMainApp, browserSupportsSpeechRecognition]);
+
   // Initialize app state based on onboarding completion
   useEffect(() => {
+    console.log('🎬 App initialization check:', {
+      hasCompletedOnboarding,
+      microphonePermissionStatus,
+      browserSupportsSpeechRecognition
+    });
+
+    // Always show onboarding if not completed, regardless of other states
+    if (!hasCompletedOnboarding) {
+      console.log('❌ Onboarding not completed - showing onboarding screen');
+      setShowMainApp(false);
+      return;
+    }
+
+    // If onboarding completed, check other requirements
     if (hasCompletedOnboarding && microphonePermissionStatus === 'granted') {
+      console.log('✅ All requirements met - showing main app');
       setShowMainApp(true);
     } else if (hasCompletedOnboarding && microphonePermissionStatus !== 'unknown') {
-      // Onboarding completed but permission not granted - show microphone setup
+      console.log('⚠️ Onboarding completed but permission issues - showing microphone setup');
       setShowMainApp(false);
     }
-  }, [hasCompletedOnboarding, microphonePermissionStatus]);
+  }, [hasCompletedOnboarding, microphonePermissionStatus, browserSupportsSpeechRecognition]);
 
   // Sync recording state with speech recognition
   useEffect(() => {
@@ -167,6 +192,9 @@ function App() {
   // Enhanced initialization effect for mobile devices
   useEffect(() => {
     const initializeApp = async () => {
+      // Only initialize if we're in the main app
+      if (!showMainApp) return;
+      
       // Prevent multiple initializations
       if (greetingInitializedRef.current || !browserSupportsSpeechRecognition || microphonePermissionStatus !== 'granted') {
         return;
@@ -240,7 +268,7 @@ function App() {
     // Only initialize once after a short delay
     const timer = setTimeout(initializeApp, 1500);
     return () => clearTimeout(timer);
-  }, [browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, microphonePermissionStatus, isMobile]);
+  }, [showMainApp, browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, microphonePermissionStatus, isMobile]);
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
@@ -284,11 +312,10 @@ function App() {
 
   // Handle onboarding completion
   const handleOnboardingComplete = () => {
-    console.log('✅ Onboarding completed');
+    console.log('✅ Onboarding completed - setting state');
     setHasCompletedOnboarding(true);
-    if (microphonePermissionStatus === 'granted') {
-      setShowMainApp(true);
-    }
+    // Force show main app after onboarding completion
+    setShowMainApp(true);
   };
 
   // Handle microphone permission granted
@@ -297,8 +324,17 @@ function App() {
     setShowMainApp(true);
   };
 
-  // Early return for onboarding flow
+  // Debug: Log current state before rendering decisions
+  console.log('🎭 Render decision:', {
+    hasCompletedOnboarding,
+    showMainApp,
+    microphonePermissionStatus,
+    browserSupportsSpeechRecognition
+  });
+
+  // Early return for onboarding flow - ALWAYS show if not completed
   if (!hasCompletedOnboarding) {
+    console.log('🎬 Rendering onboarding screen');
     return (
       <PerformanceOptimization>
         <SEOOptimization />
@@ -309,6 +345,7 @@ function App() {
 
   // Early return for microphone setup (if onboarding completed but no mic access)
   if (hasCompletedOnboarding && microphonePermissionStatus !== 'granted' && microphonePermissionStatus !== 'unknown') {
+    console.log('🎤 Rendering microphone setup screen');
     return (
       <PerformanceOptimization>
         <SEOOptimization />
@@ -319,6 +356,7 @@ function App() {
 
   // Early return for browser compatibility
   if (!browserSupportsSpeechRecognition) {
+    console.log('❌ Rendering browser not supported screen');
     return (
       <PerformanceOptimization>
         <SEOOptimization />
@@ -349,6 +387,7 @@ function App() {
 
   // Don't render main app until we have proper permission status
   if (!showMainApp) {
+    console.log('⏳ Rendering loading screen');
     return (
       <PerformanceOptimization>
         <SEOOptimization />
@@ -364,6 +403,8 @@ function App() {
       </PerformanceOptimization>
     );
   }
+
+  console.log('🏠 Rendering main app');
 
   // ALL FUNCTION DEFINITIONS AFTER HOOKS AND CONDITIONAL RETURNS
 
