@@ -52,6 +52,11 @@ function App() {
 
   // Add ref to track if we're currently processing to prevent duplicates
   const processingRef = useRef(false);
+  
+  // Add refs to prevent duplicate greeting initialization
+  const greetingInitializedRef = useRef(false);
+  const greetingPlayingRef = useRef(false);
+  const audioContextInitializedRef = useRef(false);
 
   const {
     transcript,
@@ -111,100 +116,117 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Auto-prepare audio context and play greeting on page load
+  // Single initialization effect with proper guards
   useEffect(() => {
-    const initializeAndPlayGreeting = async () => {
-      if (hasPlayedGreeting || !browserSupportsSpeechRecognition) {
+    const initializeApp = async () => {
+      // Prevent multiple initializations
+      if (greetingInitializedRef.current || !browserSupportsSpeechRecognition) {
         return;
       }
       
+      greetingInitializedRef.current = true;
+      console.log('🎵 Initializing app - single time only');
+      
       try {
-        console.log('🎵 Auto-initializing audio and playing greeting...');
+        // Initialize audio context first
+        if (!audioContextInitializedRef.current) {
+          console.log('🔊 Preparing audio context...');
+          await prepareAudioContext();
+          await prepareAudioFeedback();
+          audioContextInitializedRef.current = true;
+          setAudioContextReady(true);
+          setUserHasInteracted(true);
+          console.log('✅ Audio context prepared');
+        }
         
-        // Try to prepare audio context immediately
-        await prepareAudioContext();
-        await prepareAudioFeedback(); // Prepare audio feedback as well
-        setAudioContextReady(true);
-        setUserHasInteracted(true);
-        console.log('✅ Audio context auto-prepared');
-        
-        // Play greeting immediately
-        setIsPlayingGreeting(true);
-        const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-        const audioBuffer = await synthesizeSpeech(greetingText);
-        
-        await playAudioBuffer(audioBuffer);
-        setHasPlayedGreeting(true);
-        console.log('✅ Auto-greeting played successfully');
+        // Play greeting only once
+        if (!greetingPlayingRef.current && !hasPlayedGreeting) {
+          greetingPlayingRef.current = true;
+          setIsPlayingGreeting(true);
+          
+          console.log('🎤 Playing welcome greeting...');
+          const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+          const audioBuffer = await synthesizeSpeech(greetingText);
+          
+          await playAudioBuffer(audioBuffer);
+          setHasPlayedGreeting(true);
+          console.log('✅ Greeting played successfully');
+          
+        }
         
       } catch (error) {
-        console.error('❌ Auto-greeting failed:', error);
-        // If auto-play fails, fall back to requiring user interaction
-        setHasPlayedGreeting(false);
+        console.error('❌ App initialization failed:', error);
+        
+        // Reset flags on error to allow retry
+        greetingInitializedRef.current = false;
+        audioContextInitializedRef.current = false;
         setUserHasInteracted(false);
         setAudioContextReady(false);
         
-        // Show a helpful message to the user
+        // Show helpful error message
         if (error instanceof Error && error.message.includes('user interaction')) {
           setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
+        } else {
+          setError('Audio initialization failed. Please tap anywhere to retry.');
         }
       } finally {
+        greetingPlayingRef.current = false;
         setIsPlayingGreeting(false);
       }
     };
 
-    // Start initialization after a short delay to ensure page is fully loaded
-    const timer = setTimeout(initializeAndPlayGreeting, 1000);
+    // Only initialize once after a short delay
+    const timer = setTimeout(initializeApp, 1000);
     return () => clearTimeout(timer);
-  }, [hasPlayedGreeting, browserSupportsSpeechRecognition]);
+  }, [browserSupportsSpeechRecognition, hasPlayedGreeting]);
 
-  // Prepare audio context on first user interaction (fallback)
+  // Fallback interaction handler for manual initialization
   const handleFirstInteraction = async () => {
-    if (!userHasInteracted) {
-      console.log('👆 First user interaction detected');
+    if (userHasInteracted && audioContextReady) {
+      return; // Already initialized
+    }
+    
+    console.log('👆 Manual interaction detected');
+    
+    try {
+      // Reset error state
+      setError(null);
+      
+      // Initialize audio if not already done
+      if (!audioContextInitializedRef.current) {
+        await prepareAudioContext();
+        await prepareAudioFeedback();
+        audioContextInitializedRef.current = true;
+        setAudioContextReady(true);
+        console.log('✅ Audio context prepared via interaction');
+      }
+      
       setUserHasInteracted(true);
       
-      try {
-        await prepareAudioContext();
-        await prepareAudioFeedback(); // Prepare audio feedback
-        setAudioContextReady(true);
-        console.log('✅ Audio context prepared');
-        setError(null); // Clear any previous audio errors
-      } catch (error) {
-        console.error('❌ Failed to prepare audio context:', error);
-        setError('Audio initialization failed. Some features may not work properly.');
-      }
-    }
-  };
-
-  // Play welcome greeting after user interaction (fallback)
-  useEffect(() => {
-    const playWelcomeGreeting = async () => {
-      if (hasPlayedGreeting || !browserSupportsSpeechRecognition || !userHasInteracted || !audioContextReady) {
-        return;
+      // Play greeting if not already played
+      if (!hasPlayedGreeting && !greetingPlayingRef.current) {
+        greetingPlayingRef.current = true;
+        setIsPlayingGreeting(true);
+        
+        try {
+          const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+          const audioBuffer = await synthesizeSpeech(greetingText);
+          await playAudioBuffer(audioBuffer);
+          setHasPlayedGreeting(true);
+          console.log('✅ Manual greeting played');
+        } catch (greetingError) {
+          console.error('❌ Manual greeting failed:', greetingError);
+        } finally {
+          greetingPlayingRef.current = false;
+          setIsPlayingGreeting(false);
+        }
       }
       
-      try {
-        setIsPlayingGreeting(true);
-        const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-        const audioBuffer = await synthesizeSpeech(greetingText);
-        
-        await playAudioBuffer(audioBuffer);
-        setHasPlayedGreeting(true);
-      } catch (error) {
-        console.error('Error playing welcome greeting:', error);
-        // Don't show error for greeting, just mark as played
-        setHasPlayedGreeting(true);
-      } finally {
-        setIsPlayingGreeting(false);
-      }
-    };
-
-    if (userHasInteracted && audioContextReady && !hasPlayedGreeting) {
-      const timer = setTimeout(playWelcomeGreeting, 500);
-      return () => clearTimeout(timer);
+    } catch (error) {
+      console.error('❌ Manual interaction failed:', error);
+      setError('Audio initialization failed. Please try again.');
     }
-  }, [hasPlayedGreeting, browserSupportsSpeechRecognition, userHasInteracted, audioContextReady]);
+  };
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
@@ -512,6 +534,10 @@ function App() {
   useEffect(() => {
     return () => {
       stopAudio();
+      // Reset initialization flags on unmount
+      greetingInitializedRef.current = false;
+      greetingPlayingRef.current = false;
+      audioContextInitializedRef.current = false;
     };
   }, []);
 
