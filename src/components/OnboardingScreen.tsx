@@ -10,9 +10,10 @@ interface OnboardingScreenProps {
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboardingComplete }) => {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useLocalStorage('has-completed-onboarding', false);
-  const [currentStep, setCurrentStep] = useState<'loading' | 'playing-audio' | 'requesting-permission' | 'completed' | 'error'>('loading');
+  const [currentStep, setCurrentStep] = useState<'initial' | 'preparing-popup' | 'requesting-permission' | 'completed' | 'error'>('initial');
   const [error, setError] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [hasUserTapped, setHasUserTapped] = useState(false);
   
   const { requestMicrophonePermission, microphonePermissionStatus, browserSupportsSpeechRecognition } = useSpeechRecognition();
 
@@ -32,37 +33,57 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       return;
     }
 
-    // Start the onboarding flow
-    startOnboardingFlow();
+    // Start with the initial screen
+    setCurrentStep('initial');
   }, [hasCompletedOnboarding, onOnboardingComplete, browserSupportsSpeechRecognition]);
 
-  const startOnboardingFlow = async () => {
+  const handleInitialTap = async () => {
+    if (hasUserTapped) return;
+    
+    setHasUserTapped(true);
+    
     try {
-      console.log('🚀 Starting onboarding flow...');
-      setCurrentStep('loading');
+      console.log('🚀 User tapped, starting onboarding flow...');
       setError(null);
-
-      // Small delay to ensure component is rendered
-      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Prepare audio context
       console.log('🔊 Preparing audio context...');
       await prepareAudioContext();
 
-      // Play the onboarding message
-      console.log('🎤 Playing onboarding message...');
-      setCurrentStep('playing-audio');
+      // Play the first message
+      console.log('🎤 Playing first message...');
       setIsPlayingAudio(true);
 
-      const onboardingMessage = "In the next screen we'll ask you for microphone permissions, tap allow to get started";
+      const firstMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
       
       try {
-        const audioBuffer = await synthesizeSpeech(onboardingMessage);
+        const audioBuffer = await synthesizeSpeech(firstMessage);
         await playAudioBuffer(audioBuffer);
-        console.log('✅ Onboarding message played successfully');
+        console.log('✅ First message played successfully');
+      } catch (audioError) {
+        console.warn('⚠️ Audio playback failed, continuing with next step:', audioError);
+      }
+
+      setIsPlayingAudio(false);
+
+      // Small delay before next step
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Move to preparing popup step
+      setCurrentStep('preparing-popup');
+      
+      // Play the second message
+      console.log('🎤 Playing second message...');
+      setIsPlayingAudio(true);
+
+      const secondMessage = "A pop up for enable microphone will appear now, tap the Allow button";
+      
+      try {
+        const audioBuffer = await synthesizeSpeech(secondMessage);
+        await playAudioBuffer(audioBuffer);
+        console.log('✅ Second message played successfully');
       } catch (audioError) {
         console.warn('⚠️ Audio playback failed, continuing with permission request:', audioError);
-        // Continue even if audio fails - accessibility is key
       }
 
       setIsPlayingAudio(false);
@@ -104,7 +125,8 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
 
   const handleRetry = () => {
     setError(null);
-    startOnboardingFlow();
+    setHasUserTapped(false);
+    setCurrentStep('initial');
   };
 
   const handleSkipOnboarding = () => {
@@ -116,44 +138,57 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
   // Render different states
   const renderContent = () => {
     switch (currentStep) {
-      case 'loading':
+      case 'initial':
         return (
-          <div className="text-center">
-            <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <Mic className="w-10 h-10 text-white" />
+          <div 
+            className="text-center cursor-pointer min-h-screen flex items-center justify-center"
+            onClick={handleInitialTap}
+          >
+            <div className="w-full max-w-lg">
+              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Mic className="w-10 h-10 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-6">Welcome to My Guiding Light</h1>
+              <p className="text-gray-600 text-xl mb-8 leading-relaxed">
+                To begin, tap anywhere on the screen to enable voice interaction.
+              </p>
+              
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-md mx-auto mb-8">
+                <p className="text-blue-800 text-sm leading-relaxed">
+                  <strong>🎤 Voice Message:</strong><br />
+                  "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction."
+                </p>
+              </div>
+
+              <div className="animate-bounce">
+                <div className="w-4 h-4 bg-gray-800 rounded-full mx-auto"></div>
+              </div>
+              <p className="text-gray-500 text-sm mt-4">Tap anywhere to continue</p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Welcome to Guiding Light</h1>
-            <p className="text-gray-600 text-lg mb-4">Your AI Bible Companion</p>
-            <div className="flex items-center justify-center gap-2 text-gray-500">
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-              <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-            </div>
-            <p className="text-sm text-gray-500 mt-4">Preparing your voice assistant...</p>
           </div>
         );
 
-      case 'playing-audio':
+      case 'preparing-popup':
         return (
           <div className="text-center">
-            <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <Volume2 className={`w-10 h-10 text-white ${isPlayingAudio ? 'animate-pulse' : ''}`} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Setting Up Voice Access</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Preparing Microphone Setup</h1>
             <p className="text-gray-600 text-lg mb-6">Please listen to the instructions...</p>
             <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-md mx-auto">
               <p className="text-blue-800 text-sm leading-relaxed">
                 🔊 <strong>Audio Message:</strong><br />
-                "In the next screen we'll ask you for microphone permissions, tap allow to get started"
+                "A pop up for enable microphone will appear now, tap the Allow button"
               </p>
             </div>
             {isPlayingAudio && (
               <div className="flex items-center justify-center gap-1 mt-4">
-                <div className="w-1 h-4 bg-gray-600 rounded-full animate-pulse"></div>
-                <div className="w-1 h-6 bg-gray-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-1 h-4 bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-1 h-6 bg-gray-700 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-                <div className="w-1 h-4 bg-gray-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse"></div>
+                <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
               </div>
             )}
           </div>
@@ -166,7 +201,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
               <Mic className="w-10 h-10 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Microphone Permission</h1>
-            <p className="text-gray-600 text-lg mb-6">Please allow microphone access when prompted by your browser</p>
+            <p className="text-gray-600 text-lg mb-6">Please tap "Allow" when prompted by your browser</p>
             <div className="bg-green-50 border border-green-200 rounded-2xl p-6 max-w-md mx-auto">
               <p className="text-green-800 text-sm leading-relaxed mb-4">
                 <strong>What to do:</strong>
