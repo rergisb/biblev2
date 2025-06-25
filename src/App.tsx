@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Mic, MicOff, Square, MessageCircle, Volume2, VolumeX } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
@@ -86,6 +86,28 @@ function App() {
   // Detect iOS for special handling
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // DEFINE FUNCTIONS THAT ARE USED IN HOOKS FIRST
+  
+  const stopAudio = useCallback(() => {
+    // Stop the global audio
+    stopCurrentAudio();
+    setIsPlayingAudio(false);
+    setIsPlayingGreeting(false);
+    setPlayingMessageId(null);
+    // Also stop any rhythmic pulses
+    stopRhythmicPulses();
+  }, []);
+
+  const handleStopAudio = useCallback(() => {
+    // Haptic feedback on stop
+    if ('vibrate' in navigator) {
+      navigator.vibrate([30, 20, 30]);
+    }
+    
+    console.log('🔇 Stopping audio playback...');
+    stopAudio();
+  }, [stopAudio]);
 
   // ALL useEffect HOOKS MUST BE DECLARED HERE - BEFORE CONDITIONAL RETURNS
 
@@ -241,7 +263,7 @@ function App() {
       greetingPlayingRef.current = false;
       audioContextInitializedRef.current = false;
     };
-  }, []);
+  }, [stopAudio]);
 
   // NOW ALL CONDITIONAL LOGIC AND EARLY RETURNS CAN HAPPEN AFTER ALL HOOKS
 
@@ -500,16 +522,6 @@ function App() {
     }
   };
 
-  const stopAudio = () => {
-    // Stop the global audio
-    stopCurrentAudio();
-    setIsPlayingAudio(false);
-    setIsPlayingGreeting(false);
-    setPlayingMessageId(null);
-    // Also stop any rhythmic pulses
-    stopRhythmicPulses();
-  };
-
   // Fallback interaction handler for manual initialization
   const handleFirstInteraction = async () => {
     if (userHasInteracted && audioContextReady) {
@@ -595,16 +607,6 @@ function App() {
     
     console.log('🛑 Stopping voice recording...');
     stopListening();
-  };
-
-  const handleStopAudio = () => {
-    // Haptic feedback on stop
-    if ('vibrate' in navigator) {
-      navigator.vibrate([30, 20, 30]);
-    }
-    
-    console.log('🔇 Stopping audio playback...');
-    stopAudio();
   };
 
   // Main area click handler - unified interaction
