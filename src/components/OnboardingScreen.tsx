@@ -8,7 +8,7 @@ interface OnboardingScreenProps {
 }
 
 export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboardingComplete }) => {
-  const [currentStep, setCurrentStep] = useState<'welcome' | 'playing-welcome' | 'playing-popup-message' | 'requesting-permission' | 'completed' | 'error'>('welcome');
+  const [currentStep, setCurrentStep] = useState<'welcome' | 'playing-welcome' | 'requesting-permission' | 'completed' | 'error'>('welcome');
   const [error, setError] = useState<string | null>(null);
   const [hasUserTapped, setHasUserTapped] = useState(false);
   const [audioContextReady, setAudioContextReady] = useState(false);
@@ -59,7 +59,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       // Step 2: Play welcome message and wait for completion
       setCurrentStep('playing-welcome');
       
-      const welcomeMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
+      const welcomeMessage = "Welcome to My Guiding Light. A popup for microphone access will appear now. Please tap Allow when prompted.";
       console.log('🎤 Playing welcome message...');
       
       const welcomeAudioBuffer = await synthesizeSpeech(welcomeMessage);
@@ -67,18 +67,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       
       console.log('✅ Welcome message completed');
       
-      // Step 3: Immediately play popup message and wait for completion
-      setCurrentStep('playing-popup-message');
-      
-      const popupMessage = "A popup for microphone access will appear now. Please tap Allow when prompted.";
-      console.log('🎤 Playing popup message...');
-      
-      const popupAudioBuffer = await synthesizeSpeech(popupMessage);
-      await playAudioBuffer(popupAudioBuffer); // Wait for completion
-      
-      console.log('✅ Popup message completed');
-      
-      // Step 4: Show permission popup after voice completes
+      // Step 3: Show permission popup after voice completes
       setCurrentStep('requesting-permission');
       
       // Small delay to ensure voice has fully finished
@@ -94,7 +83,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
         // Small delay before transitioning
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Step 5: Complete onboarding and proceed to main app
+        // Step 4: Complete onboarding and proceed to main app
         console.log('🎯 Completing onboarding...');
         onOnboardingComplete();
       } else {
@@ -188,33 +177,6 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
                 
                 <p className="text-green-800 text-lg font-medium">
                   🎵 Playing welcome message...
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-
-      case 'playing-popup-message':
-        return (
-          <div className="min-h-screen bg-white flex items-center justify-center px-4">
-            <div className="w-full max-w-lg text-center">
-              <div className="w-32 h-32 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl">
-                <Mic className="w-16 h-16 text-white animate-pulse" />
-              </div>
-              
-              <h1 className="text-4xl font-bold text-gray-900 mb-6">Setup Instructions</h1>
-              
-              <div className="bg-blue-50 border-4 border-blue-200 rounded-2xl p-6">
-                <div className="flex items-center justify-center gap-1 mb-4">
-                  <div className="w-2 h-8 bg-blue-600 rounded-full animate-pulse"></div>
-                  <div className="w-2 h-12 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-8 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-12 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-                  <div className="w-2 h-8 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-                
-                <p className="text-blue-800 text-lg font-medium">
-                  🎵 Playing setup instructions...
                 </p>
               </div>
             </div>
