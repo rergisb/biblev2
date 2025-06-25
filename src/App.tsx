@@ -36,6 +36,8 @@ interface ChatSession {
 }
 
 function App() {
+  // ALL HOOKS MUST BE DECLARED FIRST - BEFORE ANY CONDITIONAL RETURNS
+  
   // Onboarding and setup states
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useLocalStorage('has-completed-onboarding', false);
   const [showMainApp, setShowMainApp] = useState(false);
@@ -85,6 +87,8 @@ function App() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
+  // ALL useEffect HOOKS MUST BE DECLARED HERE - BEFORE CONDITIONAL RETURNS
+
   // Initialize app state based on onboarding completion
   useEffect(() => {
     if (hasCompletedOnboarding && microphonePermissionStatus === 'granted') {
@@ -94,89 +98,6 @@ function App() {
       setShowMainApp(false);
     }
   }, [hasCompletedOnboarding, microphonePermissionStatus]);
-
-  // Handle onboarding completion
-  const handleOnboardingComplete = () => {
-    console.log('✅ Onboarding completed');
-    setHasCompletedOnboarding(true);
-    if (microphonePermissionStatus === 'granted') {
-      setShowMainApp(true);
-    }
-  };
-
-  // Handle microphone permission granted
-  const handleMicrophonePermissionGranted = () => {
-    console.log('✅ Microphone permission granted');
-    setShowMainApp(true);
-  };
-
-  // Early return for onboarding flow
-  if (!hasCompletedOnboarding) {
-    return (
-      <PerformanceOptimization>
-        <SEOOptimization />
-        <OnboardingScreen onOnboardingComplete={handleOnboardingComplete} />
-      </PerformanceOptimization>
-    );
-  }
-
-  // Early return for microphone setup (if onboarding completed but no mic access)
-  if (hasCompletedOnboarding && microphonePermissionStatus !== 'granted' && microphonePermissionStatus !== 'unknown') {
-    return (
-      <PerformanceOptimization>
-        <SEOOptimization />
-        <MicrophoneSetup onPermissionGranted={handleMicrophonePermissionGranted} />
-      </PerformanceOptimization>
-    );
-  }
-
-  // Early return for browser compatibility
-  if (!browserSupportsSpeechRecognition) {
-    return (
-      <PerformanceOptimization>
-        <SEOOptimization />
-        <div className="min-h-screen bg-white flex items-center justify-center p-6">
-          <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
-              <MicOff className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4 speakable-content">Browser Not Supported</h1>
-            <p className="text-gray-700 leading-relaxed mb-4 speakable-content">
-              Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
-            </p>
-            <p className="text-sm text-gray-600 mb-4">
-              On iOS, make sure you're using Safari and have microphone permissions enabled.
-            </p>
-            {isMobile && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
-                <p className="text-amber-800 text-sm">
-                  📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </PerformanceOptimization>
-    );
-  }
-
-  // Don't render main app until we have proper permission status
-  if (!showMainApp) {
-    return (
-      <PerformanceOptimization>
-        <SEOOptimization />
-        <div className="min-h-screen bg-white flex items-center justify-center p-6">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-              <Mic className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading Bible Companion</h1>
-            <p className="text-gray-600">Preparing your voice assistant...</p>
-          </div>
-        </div>
-      </PerformanceOptimization>
-    );
-  }
 
   // Sync recording state with speech recognition
   useEffect(() => {
@@ -284,54 +205,6 @@ function App() {
     return () => clearTimeout(timer);
   }, [browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, microphonePermissionStatus]);
 
-  // Fallback interaction handler for manual initialization
-  const handleFirstInteraction = async () => {
-    if (userHasInteracted && audioContextReady) {
-      return; // Already initialized
-    }
-    
-    console.log('👆 Manual interaction detected');
-    
-    try {
-      // Reset error state
-      setError(null);
-      
-      // Initialize audio if not already done
-      if (!audioContextInitializedRef.current) {
-        await prepareAudioContext();
-        await prepareAudioFeedback();
-        audioContextInitializedRef.current = true;
-        setAudioContextReady(true);
-        console.log('✅ Audio context prepared via interaction');
-      }
-      
-      setUserHasInteracted(true);
-      
-      // Play greeting if enabled and not already played
-      if (greetingEnabled && !hasPlayedGreeting && !greetingPlayingRef.current) {
-        greetingPlayingRef.current = true;
-        setIsPlayingGreeting(true);
-        
-        try {
-          const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-          const audioBuffer = await synthesizeSpeech(greetingText);
-          await playAudioBuffer(audioBuffer);
-          setHasPlayedGreeting(true);
-          console.log('✅ Manual greeting played');
-        } catch (greetingError) {
-          console.error('❌ Manual greeting failed:', greetingError);
-        } finally {
-          greetingPlayingRef.current = false;
-          setIsPlayingGreeting(false);
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ Manual interaction failed:', error);
-      setError('Audio initialization failed. Please try again.');
-    }
-  };
-
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
     if (transcript && transcript.trim()) {
@@ -358,6 +231,104 @@ function App() {
       resetTranscript();
     }
   }, [isListening, pendingTranscript, confidence, isMobile]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      stopAudio();
+      // Reset initialization flags on unmount
+      greetingInitializedRef.current = false;
+      greetingPlayingRef.current = false;
+      audioContextInitializedRef.current = false;
+    };
+  }, []);
+
+  // NOW ALL CONDITIONAL LOGIC AND EARLY RETURNS CAN HAPPEN AFTER ALL HOOKS
+
+  // Handle onboarding completion
+  const handleOnboardingComplete = () => {
+    console.log('✅ Onboarding completed');
+    setHasCompletedOnboarding(true);
+    if (microphonePermissionStatus === 'granted') {
+      setShowMainApp(true);
+    }
+  };
+
+  // Handle microphone permission granted
+  const handleMicrophonePermissionGranted = () => {
+    console.log('✅ Microphone permission granted');
+    setShowMainApp(true);
+  };
+
+  // Early return for onboarding flow
+  if (!hasCompletedOnboarding) {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <OnboardingScreen onOnboardingComplete={handleOnboardingComplete} />
+      </PerformanceOptimization>
+    );
+  }
+
+  // Early return for microphone setup (if onboarding completed but no mic access)
+  if (hasCompletedOnboarding && microphonePermissionStatus !== 'granted' && microphonePermissionStatus !== 'unknown') {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <MicrophoneSetup onPermissionGranted={handleMicrophonePermissionGranted} />
+      </PerformanceOptimization>
+    );
+  }
+
+  // Early return for browser compatibility
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+          <div className="bg-gray-50 border border-gray-200 p-8 rounded-3xl shadow-lg text-center max-w-md">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+              <MicOff className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4 speakable-content">Browser Not Supported</h1>
+            <p className="text-gray-700 leading-relaxed mb-4 speakable-content">
+              Your browser doesn't support speech recognition. Please use Chrome, Safari, or another modern browser to experience the voice assistant.
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              On iOS, make sure you're using Safari and have microphone permissions enabled.
+            </p>
+            {isMobile && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+                <p className="text-amber-800 text-sm">
+                  📱 <strong>Mobile Tip:</strong> Make sure to allow microphone access when prompted by your browser.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </PerformanceOptimization>
+    );
+  }
+
+  // Don't render main app until we have proper permission status
+  if (!showMainApp) {
+    return (
+      <PerformanceOptimization>
+        <SEOOptimization />
+        <div className="min-h-screen bg-white flex items-center justify-center p-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
+              <Mic className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Loading Bible Companion</h1>
+            <p className="text-gray-600">Preparing your voice assistant...</p>
+          </div>
+        </div>
+      </PerformanceOptimization>
+    );
+  }
+
+  // ALL FUNCTION DEFINITIONS AFTER HOOKS AND CONDITIONAL RETURNS
 
   const addMessage = (text: string, isUser: boolean, confidence?: number, audioBuffer?: ArrayBuffer) => {
     const newMessage: Message = {
@@ -539,6 +510,54 @@ function App() {
     stopRhythmicPulses();
   };
 
+  // Fallback interaction handler for manual initialization
+  const handleFirstInteraction = async () => {
+    if (userHasInteracted && audioContextReady) {
+      return; // Already initialized
+    }
+    
+    console.log('👆 Manual interaction detected');
+    
+    try {
+      // Reset error state
+      setError(null);
+      
+      // Initialize audio if not already done
+      if (!audioContextInitializedRef.current) {
+        await prepareAudioContext();
+        await prepareAudioFeedback();
+        audioContextInitializedRef.current = true;
+        setAudioContextReady(true);
+        console.log('✅ Audio context prepared via interaction');
+      }
+      
+      setUserHasInteracted(true);
+      
+      // Play greeting if enabled and not already played
+      if (greetingEnabled && !hasPlayedGreeting && !greetingPlayingRef.current) {
+        greetingPlayingRef.current = true;
+        setIsPlayingGreeting(true);
+        
+        try {
+          const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+          const audioBuffer = await synthesizeSpeech(greetingText);
+          await playAudioBuffer(audioBuffer);
+          setHasPlayedGreeting(true);
+          console.log('✅ Manual greeting played');
+        } catch (greetingError) {
+          console.error('❌ Manual greeting failed:', greetingError);
+        } finally {
+          greetingPlayingRef.current = false;
+          setIsPlayingGreeting(false);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Manual interaction failed:', error);
+      setError('Audio initialization failed. Please try again.');
+    }
+  };
+
   const handleVoiceStart = async () => {
     // Handle first interaction
     await handleFirstInteraction();
@@ -642,17 +661,6 @@ function App() {
       navigator.vibrate(50);
     }
   };
-
-  // Cleanup audio on unmount
-  useEffect(() => {
-    return () => {
-      stopAudio();
-      // Reset initialization flags on unmount
-      greetingInitializedRef.current = false;
-      greetingPlayingRef.current = false;
-      audioContextInitializedRef.current = false;
-    };
-  }, []);
 
   return (
     <PerformanceOptimization>
