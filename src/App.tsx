@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Square, MessageCircle } from 'lucide-react';
+import { Mic, MicOff, Square, MessageCircle, Volume2, VolumeX } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
 import { SEOOptimization } from './components/SEOOptimization';
@@ -15,6 +15,7 @@ import {
   playErrorSound, 
   prepareAudioFeedback 
 } from './services/audioFeedbackService';
+import { useLocalStorage } from './hooks/useLocalStorage';
 
 interface Message {
   id: string;
@@ -44,6 +45,9 @@ function App() {
   const [userHasInteracted, setUserHasInteracted] = useState(false);
   const [audioContextReady, setAudioContextReady] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  
+  // Greeting toggle state
+  const [greetingEnabled, setGreetingEnabled] = useLocalStorage('greeting-enabled', true);
   
   // Chat history state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -139,8 +143,8 @@ function App() {
           console.log('✅ Audio context prepared');
         }
         
-        // Play greeting only once
-        if (!greetingPlayingRef.current && !hasPlayedGreeting) {
+        // Play greeting only if enabled and not already played
+        if (greetingEnabled && !greetingPlayingRef.current && !hasPlayedGreeting) {
           greetingPlayingRef.current = true;
           setIsPlayingGreeting(true);
           
@@ -151,7 +155,6 @@ function App() {
           await playAudioBuffer(audioBuffer);
           setHasPlayedGreeting(true);
           console.log('✅ Greeting played successfully');
-          
         }
         
       } catch (error) {
@@ -178,7 +181,7 @@ function App() {
     // Only initialize once after a short delay
     const timer = setTimeout(initializeApp, 1000);
     return () => clearTimeout(timer);
-  }, [browserSupportsSpeechRecognition, hasPlayedGreeting]);
+  }, [browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled]);
 
   // Fallback interaction handler for manual initialization
   const handleFirstInteraction = async () => {
@@ -203,8 +206,8 @@ function App() {
       
       setUserHasInteracted(true);
       
-      // Play greeting if not already played
-      if (!hasPlayedGreeting && !greetingPlayingRef.current) {
+      // Play greeting if enabled and not already played
+      if (greetingEnabled && !hasPlayedGreeting && !greetingPlayingRef.current) {
         greetingPlayingRef.current = true;
         setIsPlayingGreeting(true);
         
@@ -530,6 +533,15 @@ function App() {
     stopAudio();
   };
 
+  const handleToggleGreeting = () => {
+    setGreetingEnabled(!greetingEnabled);
+    
+    // Haptic feedback
+    if ('vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  };
+
   // Cleanup audio on unmount
   useEffect(() => {
     return () => {
@@ -605,8 +617,23 @@ function App() {
               />
             </div>
 
-            {/* Right - Empty space to maintain center alignment */}
-            <div className="w-[60px]"></div>
+            {/* Right - Greeting Toggle */}
+            <button
+              onClick={handleToggleGreeting}
+              className={`p-3 border border-gray-200 rounded-2xl transition-all duration-200 group shadow-sm ${
+                greetingEnabled 
+                  ? 'bg-gray-800 hover:bg-gray-900' 
+                  : 'bg-gray-50 hover:bg-gray-100'
+              }`}
+              title={greetingEnabled ? "Disable greeting message" : "Enable greeting message"}
+              data-no-main-click
+            >
+              {greetingEnabled ? (
+                <Volume2 className="w-6 h-6 text-white transition-all duration-300" />
+              ) : (
+                <VolumeX className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
+              )}
+            </button>
           </div>
         </header>
 
@@ -719,6 +746,15 @@ function App() {
               </div>
             )}
 
+            {/* Greeting Status */}
+            {!greetingEnabled && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
+                <p className="text-blue-800 text-sm text-center">
+                  🔇 Greeting message disabled
+                </p>
+              </div>
+            )}
+
             {/* Visual Interaction Hint - Moved above status messages */}
             <div className="text-center">
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
@@ -791,11 +827,11 @@ function App() {
                   <p className="text-gray-600 text-sm mb-1 speakable-content">Ask for a verse or spiritual advice</p>
                   <p className="text-gray-500 text-xs">
                     {!userHasInteracted ? 
-                      'Audio will start automatically' :
+                      (greetingEnabled ? 'Audio will start automatically' : 'Tap anywhere to speak') :
                       'Tap anywhere to speak'
                     }
                   </p>
-                  {isMobile && !userHasInteracted && (
+                  {isMobile && !userHasInteracted && greetingEnabled && (
                     <p className="text-gray-400 text-xs mt-1">
                       📱 Voice greeting will play automatically
                     </p>
