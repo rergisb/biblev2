@@ -14,6 +14,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
   const [error, setError] = useState<string | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [hasUserTapped, setHasUserTapped] = useState(false);
+  const [hasAutoPlayed, setHasAutoPlayed] = useState(false);
   
   const { requestMicrophonePermission, microphonePermissionStatus, browserSupportsSpeechRecognition } = useSpeechRecognition();
 
@@ -37,6 +38,40 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
     setCurrentStep('initial');
   }, [hasCompletedOnboarding, onOnboardingComplete, browserSupportsSpeechRecognition]);
 
+  // Auto-play welcome message when component mounts
+  useEffect(() => {
+    const autoPlayWelcome = async () => {
+      if (hasAutoPlayed || hasCompletedOnboarding || !browserSupportsSpeechRecognition) {
+        return;
+      }
+
+      setHasAutoPlayed(true);
+      
+      try {
+        console.log('🎤 Auto-playing welcome message...');
+        setIsPlayingAudio(true);
+
+        // Prepare audio context
+        await prepareAudioContext();
+
+        const welcomeMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
+        const audioBuffer = await synthesizeSpeech(welcomeMessage);
+        await playAudioBuffer(audioBuffer);
+        
+        console.log('✅ Welcome message played successfully');
+      } catch (error) {
+        console.warn('⚠️ Auto-play failed (this is normal on some devices):', error);
+        // Don't show error for auto-play failure - it's expected on many devices
+      } finally {
+        setIsPlayingAudio(false);
+      }
+    };
+
+    // Small delay to ensure component is fully mounted
+    const timer = setTimeout(autoPlayWelcome, 500);
+    return () => clearTimeout(timer);
+  }, [hasAutoPlayed, hasCompletedOnboarding, browserSupportsSpeechRecognition]);
+
   const handleInitialTap = async () => {
     if (hasUserTapped) return;
     
@@ -50,21 +85,23 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
       console.log('🔊 Preparing audio context...');
       await prepareAudioContext();
 
-      // Play the first message
-      console.log('🎤 Playing first message...');
-      setIsPlayingAudio(true);
+      // Play the first message if not already playing
+      if (!isPlayingAudio) {
+        console.log('🎤 Playing first message...');
+        setIsPlayingAudio(true);
 
-      const firstMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
-      
-      try {
-        const audioBuffer = await synthesizeSpeech(firstMessage);
-        await playAudioBuffer(audioBuffer);
-        console.log('✅ First message played successfully');
-      } catch (audioError) {
-        console.warn('⚠️ Audio playback failed, continuing with next step:', audioError);
+        const firstMessage = "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction.";
+        
+        try {
+          const audioBuffer = await synthesizeSpeech(firstMessage);
+          await playAudioBuffer(audioBuffer);
+          console.log('✅ First message played successfully');
+        } catch (audioError) {
+          console.warn('⚠️ Audio playback failed, continuing with next step:', audioError);
+        }
+
+        setIsPlayingAudio(false);
       }
-
-      setIsPlayingAudio(false);
 
       // Small delay before next step
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -126,6 +163,7 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
   const handleRetry = () => {
     setError(null);
     setHasUserTapped(false);
+    setHasAutoPlayed(false);
     setCurrentStep('initial');
   };
 
@@ -155,15 +193,26 @@ export const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ onOnboarding
               
               <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 max-w-md mx-auto mb-8">
                 <p className="text-blue-800 text-sm leading-relaxed">
-                  <strong>🎤 Voice Message:</strong><br />
+                  <strong>🎤 {isPlayingAudio ? 'Playing:' : 'Voice Message:'}</strong><br />
                   "Welcome to My Guiding Light. To begin, tap anywhere on the screen to enable voice interaction."
                 </p>
+                {isPlayingAudio && (
+                  <div className="flex items-center justify-center gap-1 mt-3">
+                    <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse"></div>
+                    <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-1 h-6 bg-blue-700 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+                    <div className="w-1 h-4 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                  </div>
+                )}
               </div>
 
               <div className="animate-bounce">
                 <div className="w-4 h-4 bg-gray-800 rounded-full mx-auto"></div>
               </div>
-              <p className="text-gray-500 text-sm mt-4">Tap anywhere to continue</p>
+              <p className="text-gray-500 text-sm mt-4">
+                {isPlayingAudio ? 'Audio playing automatically...' : 'Tap anywhere to continue'}
+              </p>
             </div>
           </div>
         );
