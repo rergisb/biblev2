@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Key, TestTube, CheckCircle, AlertCircle, Volume2, Play, Square } from 'lucide-react';
-import { testApiConnection, synthesizeSpeech, playAudioBuffer } from '../services/elevenLabsService';
+import { X, Settings, Volume2, TestTube, CheckCircle, AlertCircle, Play, Square } from 'lucide-react';
+import { testSpeechSynthesis, synthesizeSpeech, stopCurrentSpeech, getAvailableVoices, saveSpeechSettings } from '../services/speechService';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface ApiConfigModalProps {
@@ -8,57 +8,67 @@ interface ApiConfigModalProps {
   onClose: () => void;
 }
 
-interface ApiConfig {
-  apiKey: string;
-  voiceId: string;
-  voiceSettings: {
-    stability: number;
-    similarity_boost: number;
-    style: number;
-    use_speaker_boost: boolean;
-  };
+interface SpeechConfig {
+  rate: number;
+  pitch: number;
+  volume: number;
+  voiceIndex: number;
 }
 
 export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose }) => {
-  const [config, setConfig] = useLocalStorage<ApiConfig>('elevenlabs-config', {
-    apiKey: '',
-    voiceId: '21m00Tcm4TlvDq8ikWAM', // Rachel voice
-    voiceSettings: {
-      stability: 0.5,
-      similarity_boost: 0.75,
-      style: 0.5,
-      use_speaker_boost: true
-    }
+  const [config, setConfig] = useLocalStorage<SpeechConfig>('speech-settings', {
+    rate: 0.9,
+    pitch: 1.0,
+    volume: 1.0,
+    voiceIndex: -1 // -1 means auto-select
   });
 
   const [tempConfig, setTempConfig] = useState(config);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [showApiKey, setShowApiKey] = useState(false);
   const [isTestingVoice, setIsTestingVoice] = useState(false);
   const [isPlayingTest, setIsPlayingTest] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       setTempConfig(config);
       setConnectionStatus('idle');
+      
+      // Load available voices
+      const voices = getAvailableVoices();
+      setAvailableVoices(voices);
+      
+      // If voices are not loaded yet, wait for them
+      if (voices.length === 0) {
+        const loadVoices = () => {
+          const newVoices = getAvailableVoices();
+          if (newVoices.length > 0) {
+            setAvailableVoices(newVoices);
+          }
+        };
+        
+        // Try again after a short delay
+        setTimeout(loadVoices, 100);
+        
+        // Also listen for voiceschanged event
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+          return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+        }
+      }
     }
   }, [isOpen, config]);
 
   const handleTestConnection = async () => {
-    if (!tempConfig.apiKey.trim()) {
-      setConnectionStatus('error');
-      return;
-    }
-
     setIsTestingConnection(true);
     setConnectionStatus('idle');
 
     try {
-      const isConnected = await testApiConnection(tempConfig.apiKey);
-      setConnectionStatus(isConnected ? 'success' : 'error');
+      const isSupported = await testSpeechSynthesis();
+      setConnectionStatus(isSupported ? 'success' : 'error');
     } catch (error) {
-      console.error('Connection test failed:', error);
+      console.error('Speech synthesis test failed:', error);
       setConnectionStatus('error');
     } finally {
       setIsTestingConnection(false);
@@ -66,11 +76,6 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
   };
 
   const handleTestVoice = async () => {
-    if (!tempConfig.apiKey.trim()) {
-      alert('Please enter your API key first');
-      return;
-    }
-
     setIsTestingVoice(true);
     setIsPlayingTest(true);
 
@@ -78,19 +83,22 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
       const testText = "Hello! This is a test of your Bible companion voice. May God's peace be with you today.";
       
       console.log('Testing voice with:', {
-        voiceId: tempConfig.voiceId,
-        settings: tempConfig.voiceSettings,
-        apiKey: tempConfig.apiKey.substring(0, 10) + '...'
+        voiceIndex: tempConfig.voiceIndex,
+        settings: {
+          rate: tempConfig.rate,
+          pitch: tempConfig.pitch,
+          volume: tempConfig.volume
+        }
       });
       
-      const audioBuffer = await synthesizeSpeech(
-        testText,
-        tempConfig.voiceId,
-        tempConfig.voiceSettings,
-        tempConfig.apiKey
-      );
+      const selectedVoice = tempConfig.voiceIndex >= 0 ? availableVoices[tempConfig.voiceIndex] : undefined;
       
-      await playAudioBuffer(audioBuffer);
+      await synthesizeSpeech(testText, {
+        rate: tempConfig.rate,
+        pitch: tempConfig.pitch,
+        volume: tempConfig.volume,
+        voice: selectedVoice
+      });
       
     } catch (error) {
       console.error('Voice test failed:', error);
@@ -101,19 +109,34 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
     }
   };
 
+  const handleStopTest = () => {
+    stopCurrentSpeech();
+    setIsPlayingTest(false);
+    setIsTestingVoice(false);
+  };
+
   const handleSave = () => {
     setConfig(tempConfig);
+    
+    // Also save to the speech service
+    const selectedVoice = tempConfig.voiceIndex >= 0 ? availableVoices[tempConfig.voiceIndex] : undefined;
+    saveSpeechSettings({
+      rate: tempConfig.rate,
+      pitch: tempConfig.pitch,
+      volume: tempConfig.volume,
+      voice: selectedVoice
+    });
+    
     onClose();
   };
 
-  const voiceOptions = [
-    { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel - Warm & Friendly' },
-    { id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi - Confident & Strong' },
-    { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella - Soft & Gentle' },
-    { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni - Deep & Resonant' },
-    { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold - Authoritative' },
-    { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam - Clear & Professional' }
-  ];
+  const getVoiceDisplayName = (voice: SpeechSynthesisVoice) => {
+    const name = voice.name;
+    const lang = voice.lang;
+    const isDefault = voice.default;
+    
+    return `${name} (${lang})${isDefault ? ' - Default' : ''}`;
+  };
 
   if (!isOpen) return null;
 
@@ -127,7 +150,7 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
               <Settings className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">ElevenLabs Configuration</h2>
+              <h2 className="text-xl font-bold text-gray-900">Speech Configuration</h2>
               <p className="text-sm text-gray-600">Configure your voice synthesis settings</p>
             </div>
           </div>
@@ -140,68 +163,35 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
         </div>
 
         <div className="p-6 overflow-y-auto max-h-[70vh] space-y-6">
-          {/* API Key Section */}
+          {/* Speech Synthesis Test */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Key className="w-5 h-5 text-gray-700" />
-              <h3 className="text-lg font-semibold text-gray-900">API Configuration</h3>
+              <Volume2 className="w-5 h-5 text-gray-700" />
+              <h3 className="text-lg font-semibold text-gray-900">Speech Synthesis</h3>
             </div>
             
             <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  ElevenLabs API Key
-                </label>
-                <div className="relative">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    value={tempConfig.apiKey}
-                    onChange={(e) => setTempConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                    className="w-full p-3 pr-12 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-gray-800 focus:border-transparent"
-                    placeholder="sk_..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {showApiKey ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Get your API key from{' '}
-                  <a 
-                    href="https://elevenlabs.io/app/speech-synthesis" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-gray-700 hover:text-gray-900 underline"
-                  >
-                    ElevenLabs Dashboard
-                  </a>
-                </p>
-              </div>
-
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleTestConnection}
-                  disabled={isTestingConnection || !tempConfig.apiKey.trim()}
+                  disabled={isTestingConnection}
                   className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <TestTube className="w-4 h-4" />
-                  {isTestingConnection ? 'Testing...' : 'Test Connection'}
+                  {isTestingConnection ? 'Testing...' : 'Test Speech Support'}
                 </button>
                 
                 {connectionStatus === 'success' && (
                   <div className="flex items-center gap-2 text-green-600">
                     <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm">Connection successful!</span>
+                    <span className="text-sm">Speech synthesis supported!</span>
                   </div>
                 )}
                 
                 {connectionStatus === 'error' && (
                   <div className="flex items-center gap-2 text-red-600">
                     <AlertCircle className="w-4 h-4" />
-                    <span className="text-sm">Connection failed</span>
+                    <span className="text-sm">Speech synthesis not supported</span>
                   </div>
                 )}
               </div>
@@ -212,27 +202,25 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Voice Selection</h3>
-              <button
-                onClick={handleTestVoice}
-                disabled={isTestingVoice || !tempConfig.apiKey.trim()}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isPlayingTest 
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {isPlayingTest ? (
-                  <>
+              <div className="flex gap-2">
+                {isPlayingTest && (
+                  <button
+                    onClick={handleStopTest}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors duration-200"
+                  >
                     <Square className="w-4 h-4" />
-                    Playing...
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="w-4 h-4" />
-                    {isTestingVoice ? 'Loading...' : 'Test Voice'}
-                  </>
+                    Stop
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={handleTestVoice}
+                  disabled={isTestingVoice || isPlayingTest}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Play className="w-4 h-4" />
+                  {isTestingVoice ? 'Loading...' : 'Test Voice'}
+                </button>
+              </div>
             </div>
             
             <div>
@@ -240,18 +228,22 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
                 Choose Voice
               </label>
               <select
-                value={tempConfig.voiceId}
-                onChange={(e) => setTempConfig(prev => ({ ...prev, voiceId: e.target.value }))}
+                value={tempConfig.voiceIndex}
+                onChange={(e) => setTempConfig(prev => ({ ...prev, voiceIndex: parseInt(e.target.value) }))}
                 className="w-full p-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-gray-800 focus:border-transparent"
               >
-                {voiceOptions.map((voice) => (
-                  <option key={voice.id} value={voice.id} className="bg-white">
-                    {voice.name}
+                <option value={-1} className="bg-white">Auto-select (Recommended)</option>
+                {availableVoices.map((voice, index) => (
+                  <option key={index} value={index} className="bg-white">
+                    {getVoiceDisplayName(voice)}
                   </option>
                 ))}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Select a voice and click "Test Voice" to hear how it sounds with your current settings
+                {availableVoices.length === 0 
+                  ? 'Loading voices...' 
+                  : `${availableVoices.length} voices available. Auto-select will choose the best English voice.`
+                }
               </p>
             </div>
           </div>
@@ -263,76 +255,59 @@ export const ApiConfigModal: React.FC<ApiConfigModalProps> = ({ isOpen, onClose 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Stability: {tempConfig.voiceSettings.stability.toFixed(2)}
+                  Speech Rate: {tempConfig.rate.toFixed(1)}x
                 </label>
                 <input
                   type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={tempConfig.voiceSettings.stability}
+                  min="0.5"
+                  max="2.0"
+                  step="0.1"
+                  value={tempConfig.rate}
                   onChange={(e) => setTempConfig(prev => ({
                     ...prev,
-                    voiceSettings: { ...prev.voiceSettings, stability: parseFloat(e.target.value) }
+                    rate: parseFloat(e.target.value)
                   }))}
                   className="w-full accent-gray-800"
                 />
-                <p className="text-xs text-gray-500 mt-1">Higher values make voice more consistent</p>
+                <p className="text-xs text-gray-500 mt-1">How fast the voice speaks</p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Similarity: {tempConfig.voiceSettings.similarity_boost.toFixed(2)}
+                  Pitch: {tempConfig.pitch.toFixed(1)}
                 </label>
                 <input
                   type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={tempConfig.voiceSettings.similarity_boost}
+                  min="0.5"
+                  max="2.0"
+                  step="0.1"
+                  value={tempConfig.pitch}
                   onChange={(e) => setTempConfig(prev => ({
                     ...prev,
-                    voiceSettings: { ...prev.voiceSettings, similarity_boost: parseFloat(e.target.value) }
+                    pitch: parseFloat(e.target.value)
                   }))}
                   className="w-full accent-gray-800"
                 />
-                <p className="text-xs text-gray-500 mt-1">Higher values make voice more similar to original</p>
+                <p className="text-xs text-gray-500 mt-1">How high or low the voice sounds</p>
               </div>
 
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Style: {tempConfig.voiceSettings.style.toFixed(2)}
+                  Volume: {Math.round(tempConfig.volume * 100)}%
                 </label>
                 <input
                   type="range"
                   min="0"
                   max="1"
-                  step="0.01"
-                  value={tempConfig.voiceSettings.style}
+                  step="0.1"
+                  value={tempConfig.volume}
                   onChange={(e) => setTempConfig(prev => ({
                     ...prev,
-                    voiceSettings: { ...prev.voiceSettings, style: parseFloat(e.target.value) }
+                    volume: parseFloat(e.target.value)
                   }))}
                   className="w-full accent-gray-800"
                 />
-                <p className="text-xs text-gray-500 mt-1">Higher values add more expressiveness</p>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">Speaker Boost</span>
-                <button
-                  onClick={() => setTempConfig(prev => ({
-                    ...prev,
-                    voiceSettings: { ...prev.voiceSettings, use_speaker_boost: !prev.voiceSettings.use_speaker_boost }
-                  }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                    tempConfig.voiceSettings.use_speaker_boost ? 'bg-gray-800' : 'bg-gray-400'
-                  }`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${
-                    tempConfig.voiceSettings.use_speaker_boost ? 'translate-x-7' : 'translate-x-1'
-                  }`} />
-                </button>
+                <p className="text-xs text-gray-500 mt-1">How loud the voice speaks</p>
               </div>
             </div>
             
