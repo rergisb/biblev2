@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Square, MessageCircle } from 'lucide-react';
+import { Mic, MicOff, Square, MessageCircle, Bug } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
 import { OnboardingScreen } from './components/OnboardingScreen';
+import { AudioDebugConsole } from './components/AudioDebugConsole';
 import { SEOOptimization } from './components/SEOOptimization';
 import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
@@ -49,6 +50,7 @@ function App() {
   const [isPlayingGreeting, setIsPlayingGreeting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
+  const [showDebugConsole, setShowDebugConsole] = useState(false);
   const [pendingTranscript, setPendingTranscript] = useState<string>('');
   const [userHasInteracted, setUserHasInteracted] = useState(false);
   const [audioContextReady, setAudioContextReady] = useState(false);
@@ -778,20 +780,25 @@ function App() {
               />
             </div>
 
-            {/* Right - Audio Status Indicator */}
-            <div className="w-12 flex justify-center">
+            {/* Right - Debug Console Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowDebugConsole(true);
+              }}
+              className="p-3 bg-purple-50 border border-purple-200 rounded-2xl hover:bg-purple-100 transition-all duration-200 group shadow-sm"
+              title="Open Audio Debug Console"
+              data-no-main-click
+            >
+              <Bug className="w-6 h-6 text-purple-600 group-hover:text-purple-900 transition-all duration-300" />
               {audioServiceStatus && (
-                <div className={`w-3 h-3 rounded-full ${
+                <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
                   audioServiceStatus.safariTTSAvailable || audioServiceStatus.elevenLabsAvailable
                     ? 'bg-green-500'
                     : 'bg-orange-500'
-                }`} title={
-                  audioServiceStatus.safariTTSAvailable || audioServiceStatus.elevenLabsAvailable
-                    ? 'Audio available'
-                    : 'Audio limited'
-                }></div>
+                }`}></div>
               )}
-            </div>
+            </button>
           </div>
         </header>
 
@@ -1053,6 +1060,12 @@ function App() {
           onLoadSession={handleLoadSession}
           onDeleteSession={handleDeleteSession}
           onNewConversation={handleNewConversation}
+        />
+
+        {/* Audio Debug Console */}
+        <AudioDebugConsole
+          isOpen={showDebugConsole}
+          onClose={() => setShowDebugConsole(false)}
         />
       </div>
     </PerformanceOptimization>
