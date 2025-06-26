@@ -3,7 +3,6 @@ import { Mic, MicOff, Square, MessageCircle, Volume2, VolumeX } from 'lucide-rea
 import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ChatHistory } from './components/ChatHistory';
 import { OnboardingScreen } from './components/OnboardingScreen';
-import { MicrophoneSetup } from './components/MicrophoneSetup';
 import { SEOOptimization } from './components/SEOOptimization';
 import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
@@ -38,7 +37,7 @@ interface ChatSession {
 function App() {
   // ALL HOOKS MUST BE DECLARED FIRST - BEFORE ANY CONDITIONAL RETURNS
   
-  // Onboarding and setup states - FORCE ONBOARDING FOR DEBUGGING
+  // Onboarding and setup states
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useLocalStorage('has-completed-onboarding', false);
   const [showMainApp, setShowMainApp] = useState(false);
 
@@ -121,11 +120,10 @@ function App() {
     });
   }, [hasCompletedOnboarding, microphonePermissionStatus, showMainApp, browserSupportsSpeechRecognition]);
 
-  // Initialize app state based on onboarding completion
+  // Initialize app state based on onboarding completion - SIMPLIFIED
   useEffect(() => {
     console.log('🎬 App initialization check:', {
       hasCompletedOnboarding,
-      microphonePermissionStatus,
       browserSupportsSpeechRecognition
     });
 
@@ -136,15 +134,12 @@ function App() {
       return;
     }
 
-    // If onboarding completed, check other requirements
-    if (hasCompletedOnboarding && microphonePermissionStatus === 'granted') {
-      console.log('✅ All requirements met - showing main app');
+    // If onboarding completed, show main app regardless of microphone permission
+    if (hasCompletedOnboarding) {
+      console.log('✅ Onboarding completed - showing main app');
       setShowMainApp(true);
-    } else if (hasCompletedOnboarding && microphonePermissionStatus !== 'unknown') {
-      console.log('⚠️ Onboarding completed but permission issues - showing microphone setup');
-      setShowMainApp(false);
     }
-  }, [hasCompletedOnboarding, microphonePermissionStatus, browserSupportsSpeechRecognition]);
+  }, [hasCompletedOnboarding, browserSupportsSpeechRecognition]);
 
   // Sync recording state with speech recognition
   useEffect(() => {
@@ -196,7 +191,7 @@ function App() {
       if (!showMainApp) return;
       
       // Prevent multiple initializations
-      if (greetingInitializedRef.current || !browserSupportsSpeechRecognition || microphonePermissionStatus !== 'granted') {
+      if (greetingInitializedRef.current || !browserSupportsSpeechRecognition) {
         return;
       }
       
@@ -268,7 +263,7 @@ function App() {
     // Only initialize once after a short delay
     const timer = setTimeout(initializeApp, 1500);
     return () => clearTimeout(timer);
-  }, [showMainApp, browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, microphonePermissionStatus, isMobile]);
+  }, [showMainApp, browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, isMobile]);
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
@@ -318,17 +313,10 @@ function App() {
     setShowMainApp(true);
   };
 
-  // Handle microphone permission granted
-  const handleMicrophonePermissionGranted = () => {
-    console.log('✅ Microphone permission granted');
-    setShowMainApp(true);
-  };
-
   // Debug: Log current state before rendering decisions
   console.log('🎭 Render decision:', {
     hasCompletedOnboarding,
     showMainApp,
-    microphonePermissionStatus,
     browserSupportsSpeechRecognition
   });
 
@@ -339,17 +327,6 @@ function App() {
       <PerformanceOptimization>
         <SEOOptimization />
         <OnboardingScreen onOnboardingComplete={handleOnboardingComplete} />
-      </PerformanceOptimization>
-    );
-  }
-
-  // Early return for microphone setup (if onboarding completed but no mic access)
-  if (hasCompletedOnboarding && microphonePermissionStatus !== 'granted' && microphonePermissionStatus !== 'unknown') {
-    console.log('🎤 Rendering microphone setup screen');
-    return (
-      <PerformanceOptimization>
-        <SEOOptimization />
-        <MicrophoneSetup onPermissionGranted={handleMicrophonePermissionGranted} />
       </PerformanceOptimization>
     );
   }
@@ -385,7 +362,7 @@ function App() {
     );
   }
 
-  // Don't render main app until we have proper permission status
+  // Don't render main app until we have proper state
   if (!showMainApp) {
     console.log('⏳ Rendering loading screen');
     return (
@@ -902,6 +879,15 @@ function App() {
               </div>
             )}
 
+            {/* Microphone permission notice - only show if denied */}
+            {microphonePermissionStatus === 'denied' && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-2xl">
+                <p className="text-orange-800 text-sm text-center">
+                  🎤 <strong>Microphone Access:</strong> Voice input is disabled. You can still use the app by tapping to interact.
+                </p>
+              </div>
+            )}
+
             {/* Visual Interaction Hint - Moved above status messages */}
             <div className="text-center">
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
@@ -976,6 +962,7 @@ function App() {
                     {!userHasInteracted ? 
                       (isMobile ? 'Tap anywhere to enable audio and speak' : 
                        greetingEnabled ? 'Audio will start automatically' : 'Tap anywhere to speak') :
+                      microphonePermissionStatus === 'denied' ? 'Tap anywhere to interact (voice input disabled)' :
                       'Tap anywhere to speak'
                     }
                   </p>
