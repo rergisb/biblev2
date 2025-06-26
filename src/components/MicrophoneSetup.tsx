@@ -24,6 +24,12 @@ export const MicrophoneSetup: React.FC<MicrophoneSetupProps> = ({ onPermissionGr
     }
   };
 
+  const handleContinueToApp = () => {
+    // Force redirect to main app regardless of permission status
+    console.log('✅ User chose to continue to main app');
+    onPermissionGranted();
+  };
+
   const getStatusIcon = () => {
     switch (microphonePermissionStatus) {
       case 'granted':
@@ -118,15 +124,18 @@ export const MicrophoneSetup: React.FC<MicrophoneSetupProps> = ({ onPermissionGr
               </button>
             )}
 
-            {microphonePermissionStatus === 'granted' && (
-              <button
-                onClick={onPermissionGranted}
-                className="w-full px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 font-medium flex items-center justify-center gap-2"
-              >
-                <Mic className="w-5 h-5" />
-                Continue to Bible Companion
-              </button>
-            )}
+            {/* Always show continue button - works for both granted and denied states */}
+            <button
+              onClick={handleContinueToApp}
+              className={`w-full px-6 py-3 rounded-xl transition-all duration-200 font-medium flex items-center justify-center gap-2 ${
+                microphonePermissionStatus === 'granted'
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <Mic className="w-5 h-5" />
+              Continue to Bible Companion
+            </button>
           </div>
 
           {/* Help Section */}
