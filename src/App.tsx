@@ -53,6 +53,7 @@ function App() {
   const [userHasInteracted, setUserHasInteracted] = useState(false);
   const [audioContextReady, setAudioContextReady] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [audioInitializationAttempted, setAudioInitializationAttempted] = useState(false);
   
   // Greeting toggle state
   const [greetingEnabled, setGreetingEnabled] = useLocalStorage('greeting-enabled', true);
@@ -184,7 +185,7 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Enhanced initialization effect for mobile devices
+  // Enhanced initialization effect for mobile devices - IMPROVED ERROR HANDLING
   useEffect(() => {
     const initializeApp = async () => {
       // Only initialize if we're in the main app
@@ -199,23 +200,29 @@ function App() {
       console.log('🎵 Initializing app - single time only');
       
       try {
-        // Initialize audio context first
+        // Initialize audio context first - but don't fail if it doesn't work
         if (!audioContextInitializedRef.current) {
           console.log('🔊 Preparing audio context...');
-          await prepareAudioContext();
-          await prepareAudioFeedback();
-          audioContextInitializedRef.current = true;
-          setAudioContextReady(true);
-          setUserHasInteracted(true);
-          console.log('✅ Audio context prepared');
+          try {
+            await prepareAudioContext();
+            await prepareAudioFeedback();
+            audioContextInitializedRef.current = true;
+            setAudioContextReady(true);
+            setUserHasInteracted(true);
+            console.log('✅ Audio context prepared');
+          } catch (audioError) {
+            console.warn('⚠️ Audio context preparation failed (this is normal on mobile):', audioError);
+            // Don't set error here - we'll handle it gracefully
+            setAudioInitializationAttempted(true);
+          }
         }
         
         // For mobile devices, wait a bit longer before attempting greeting
         const greetingDelay = isMobile ? 2000 : 1000;
         
         setTimeout(async () => {
-          // Play greeting only if enabled and not already played
-          if (greetingEnabled && !greetingPlayingRef.current && !hasPlayedGreeting) {
+          // Only play greeting if audio context is ready and enabled
+          if (greetingEnabled && !greetingPlayingRef.current && !hasPlayedGreeting && audioContextReady) {
             greetingPlayingRef.current = true;
             setIsPlayingGreeting(true);
             
@@ -229,10 +236,7 @@ function App() {
               console.log('✅ Greeting played successfully');
             } catch (greetingError) {
               console.warn('⚠️ Greeting playback failed (this is normal on mobile):', greetingError);
-              // Don't show error for greeting failures on mobile
-              if (!isMobile) {
-                setError('Audio initialization failed. Please tap anywhere to enable voice features.');
-              }
+              // Don't show error for greeting failures
             }
           }
         }, greetingDelay);
@@ -246,13 +250,9 @@ function App() {
         setUserHasInteracted(false);
         setAudioContextReady(false);
         
-        // Show helpful error message only for non-mobile or critical errors
-        if (!isMobile || (error instanceof Error && !error.message.includes('user interaction'))) {
-          if (error instanceof Error && error.message.includes('user interaction')) {
-            setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
-          } else {
-            setError('Audio initialization failed. Please tap anywhere to retry.');
-          }
+        // Only show error for critical failures, not audio issues
+        if (error instanceof Error && !error.message.includes('audio') && !error.message.includes('Audio')) {
+          setError('There was an issue setting up the app. Please refresh the page and try again.');
         }
       } finally {
         greetingPlayingRef.current = false;
@@ -263,7 +263,7 @@ function App() {
     // Only initialize once after a short delay
     const timer = setTimeout(initializeApp, 1500);
     return () => clearTimeout(timer);
-  }, [showMainApp, browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, isMobile]);
+  }, [showMainApp, browserSupportsSpeechRecognition, hasPlayedGreeting, greetingEnabled, audioContextReady]);
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
@@ -422,9 +422,13 @@ function App() {
     setIsProcessing(true);
     setError(null);
 
-    // Play initial processing sound and start rhythmic pulses
-    await playProcessingStartSound();
-    await startRhythmicPulses();
+    // Play initial processing sound and start rhythmic pulses - but don't fail if audio doesn't work
+    try {
+      await playProcessingStartSound();
+      await startRhythmicPulses();
+    } catch (audioError) {
+      console.log('Audio feedback not available, continuing without sound');
+    }
 
     // Stop any currently playing audio
     stopAudio();
@@ -446,46 +450,68 @@ function App() {
       // Stop pulses before playing AI response
       stopRhythmicPulses();
       
-      // Convert AI response to speech
+      // Convert AI response to speech - but handle audio failures gracefully
       console.log('🔊 Converting to speech...');
-      const audioBuffer = await synthesizeSpeech(aiText);
-      
-      // Add AI response to chat WITH audio buffer for caching
-      const aiMessage = addMessage(aiText, false, undefined, audioBuffer);
-      console.log('💾 Audio cached for message:', aiMessage.id);
-      
-      // Auto-play response with haptic feedback
-      if ('vibrate' in navigator) {
-        navigator.vibrate([100, 50, 100]);
-      }
-      
-      setIsPlayingAudio(true);
-      setPlayingMessageId(aiMessage.id);
+      let audioBuffer: ArrayBuffer | undefined;
       
       try {
-        await playAudioBuffer(audioBuffer);
-        setIsPlayingAudio(false);
-        setPlayingMessageId(null);
-      } catch (audioError) {
-        console.error('❌ Audio playback failed:', audioError);
-        setIsPlayingAudio(false);
-        setPlayingMessageId(null);
-        
-        // Play error sound
-        await playErrorSound();
-        
-        // Show user-friendly error for audio issues
-        if (audioError instanceof Error) {
-          if (audioError.message.includes('user interaction') || audioError.message.includes('tap the screen')) {
-            setError('Please tap the screen first to enable audio on your device.');
-          } else if (audioError.message.includes('not supported')) {
-            setError('Audio not supported on this device.');
-          } else {
-            setError('Audio playback failed. Please check your device settings.');
-          }
-        } else {
-          setError('Audio playback failed. Please try again.');
+        audioBuffer = await synthesizeSpeech(aiText);
+        console.log('✅ Speech synthesis successful');
+      } catch (speechError) {
+        console.warn('⚠️ Speech synthesis failed:', speechError);
+        // Continue without audio - don't fail the entire interaction
+      }
+      
+      // Add AI response to chat WITH audio buffer for caching (if available)
+      const aiMessage = addMessage(aiText, false, undefined, audioBuffer);
+      if (audioBuffer) {
+        console.log('💾 Audio cached for message:', aiMessage.id);
+      }
+      
+      // Auto-play response with haptic feedback - only if audio is available and context is ready
+      if (audioBuffer && audioContextReady) {
+        if ('vibrate' in navigator) {
+          navigator.vibrate([100, 50, 100]);
         }
+        
+        setIsPlayingAudio(true);
+        setPlayingMessageId(aiMessage.id);
+        
+        try {
+          await playAudioBuffer(audioBuffer);
+          setIsPlayingAudio(false);
+          setPlayingMessageId(null);
+        } catch (audioError) {
+          console.error('❌ Audio playback failed:', audioError);
+          setIsPlayingAudio(false);
+          setPlayingMessageId(null);
+          
+          // Play error sound if possible
+          try {
+            await playErrorSound();
+          } catch (e) {
+            console.log('Error sound also failed');
+          }
+          
+          // Show user-friendly error for audio issues - but make it dismissible
+          if (audioError instanceof Error) {
+            if (audioError.message.includes('user interaction') || audioError.message.includes('tap the screen')) {
+              setError('Audio needs to be enabled. Tap anywhere on the screen to enable audio, then try again.');
+            } else if (audioError.message.includes('not supported')) {
+              setError('Audio not supported on this device. You can still read the responses.');
+            } else {
+              setError('Audio playback failed. You can still read the responses or try tapping the screen to enable audio.');
+            }
+          } else {
+            setError('Audio playback failed. You can still read the responses.');
+          }
+        }
+      } else if (!audioBuffer) {
+        // Speech synthesis failed, but we still have the text response
+        console.log('📝 Response available as text only');
+      } else if (!audioContextReady) {
+        // Audio context not ready, show helpful message
+        setError('Audio needs to be enabled. Tap anywhere on the screen to enable audio features.');
       }
       
     } catch (error) {
@@ -494,15 +520,19 @@ function App() {
       // Stop pulses on error
       stopRhythmicPulses();
       
-      // Play error sound
-      await playErrorSound();
+      // Play error sound if possible
+      try {
+        await playErrorSound();
+      } catch (e) {
+        console.log('Error sound not available');
+      }
       
       // Provide more specific error messages
       if (error instanceof Error) {
         if (error.message.includes('Gemini')) {
           setError('Unable to connect to AI service. Please check your internet connection and try again.');
         } else if (error.message.includes('ElevenLabs') || error.message.includes('speech')) {
-          setError('Voice synthesis error. Please try again.');
+          setError('Voice synthesis error. The text response is still available.');
         } else {
           setError('Something went wrong. Please try again.');
         }
@@ -547,15 +577,19 @@ function App() {
       }
     } catch (error) {
       console.error('❌ Error playing message audio:', error);
-      await playErrorSound();
-      setError('Failed to play audio. Please try again.');
+      try {
+        await playErrorSound();
+      } catch (e) {
+        console.log('Error sound not available');
+      }
+      setError('Failed to play audio. Please try tapping the screen to enable audio features.');
     } finally {
       setIsPlayingAudio(false);
       setPlayingMessageId(null);
     }
   };
 
-  // Fallback interaction handler for manual initialization
+  // Enhanced interaction handler for manual initialization
   const handleFirstInteraction = async () => {
     if (userHasInteracted && audioContextReady) {
       return; // Already initialized
@@ -569,14 +603,17 @@ function App() {
       
       // Initialize audio if not already done
       if (!audioContextInitializedRef.current) {
+        console.log('🔊 Initializing audio context via user interaction...');
         await prepareAudioContext();
         await prepareAudioFeedback();
         audioContextInitializedRef.current = true;
         setAudioContextReady(true);
+        setUserHasInteracted(true);
         console.log('✅ Audio context prepared via interaction');
       }
       
       setUserHasInteracted(true);
+      setAudioInitializationAttempted(true);
       
       // Play greeting if enabled and not already played
       if (greetingEnabled && !hasPlayedGreeting && !greetingPlayingRef.current) {
@@ -599,7 +636,8 @@ function App() {
       
     } catch (error) {
       console.error('❌ Manual interaction failed:', error);
-      setError('Audio initialization failed. Please try again.');
+      setAudioInitializationAttempted(true);
+      // Don't show error immediately - let user try again
     }
   };
 
@@ -623,7 +661,11 @@ function App() {
       await startListening();
     } catch (error) {
       console.error('❌ Error starting voice recognition:', error);
-      await playErrorSound(); // Play error sound
+      try {
+        await playErrorSound();
+      } catch (e) {
+        console.log('Error sound not available');
+      }
       if (error instanceof Error) {
         setError(error.message);
       } else {
@@ -833,10 +875,22 @@ function App() {
 
           {/* Status Text Area */}
           <div className="w-full max-w-md space-y-4 mb-8">
-            {/* Error Display */}
+            {/* Error Display - IMPROVED */}
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
-                <p className="text-red-800 text-sm text-center">{error}</p>
+                <div className="flex items-start justify-between">
+                  <p className="text-red-800 text-sm flex-1">{error}</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setError(null);
+                    }}
+                    className="ml-2 text-red-600 hover:text-red-800 text-sm font-medium"
+                    data-no-main-click
+                  >
+                    ✕
+                  </button>
+                </div>
                 {error.includes('tap the screen') && (
                   <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                     <p className="text-blue-800 text-xs text-center">
@@ -852,11 +906,20 @@ function App() {
               </div>
             )}
 
-            {/* Audio Context Status */}
-            {userHasInteracted && !audioContextReady && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
-                <p className="text-amber-800 text-sm text-center">
-                  🔊 Preparing audio system...
+            {/* Audio Context Status - IMPROVED */}
+            {!audioContextReady && audioInitializationAttempted && !error && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
+                <p className="text-blue-800 text-sm text-center">
+                  🔊 <strong>Enable Audio:</strong> Tap anywhere on the screen to enable voice features
+                </p>
+              </div>
+            )}
+
+            {/* Microphone permission notice - only show if denied */}
+            {microphonePermissionStatus === 'denied' && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-2xl">
+                <p className="text-orange-800 text-sm text-center">
+                  🎤 <strong>Microphone Access:</strong> Voice input is disabled. You can still use the app by tapping to interact.
                 </p>
               </div>
             )}
@@ -870,20 +933,11 @@ function App() {
               </div>
             )}
 
-            {/* Mobile-specific audio notice */}
-            {isMobile && !userHasInteracted && (
+            {/* Mobile-specific audio notice - IMPROVED */}
+            {isMobile && !userHasInteracted && !audioInitializationAttempted && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
                 <p className="text-blue-800 text-sm text-center">
                   📱 <strong>Mobile Device:</strong> Tap anywhere to enable audio and voice features
-                </p>
-              </div>
-            )}
-
-            {/* Microphone permission notice - only show if denied */}
-            {microphonePermissionStatus === 'denied' && (
-              <div className="p-3 bg-orange-50 border border-orange-200 rounded-2xl">
-                <p className="text-orange-800 text-sm text-center">
-                  🎤 <strong>Microphone Access:</strong> Voice input is disabled. You can still use the app by tapping to interact.
                 </p>
               </div>
             )}
@@ -959,14 +1013,14 @@ function App() {
                   <h1 className="text-gray-800 font-medium mb-2 speakable-content">Ready for Bible guidance</h1>
                   <p className="text-gray-600 text-sm mb-1 speakable-content">Ask for a verse or spiritual advice</p>
                   <p className="text-gray-500 text-xs">
-                    {!userHasInteracted ? 
+                    {!userHasInteracted && !audioInitializationAttempted ? 
                       (isMobile ? 'Tap anywhere to enable audio and speak' : 
                        greetingEnabled ? 'Audio will start automatically' : 'Tap anywhere to speak') :
                       microphonePermissionStatus === 'denied' ? 'Tap anywhere to interact (voice input disabled)' :
                       'Tap anywhere to speak'
                     }
                   </p>
-                  {isMobile && !userHasInteracted && (
+                  {isMobile && !userHasInteracted && !audioInitializationAttempted && (
                     <p className="text-gray-400 text-xs mt-1">
                       📱 Mobile browsers require user interaction for audio
                     </p>
