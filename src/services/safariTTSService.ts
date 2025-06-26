@@ -7,6 +7,7 @@ export class SafariTTSService {
   private currentUtterance: SpeechSynthesisUtterance | null = null;
   private isPlaying = false;
   private initializationPromise: Promise<void> | null = null;
+  private isUnlocked = false;
 
   constructor() {
     this.speechSynthesis = window.speechSynthesis;
@@ -48,52 +49,108 @@ export class SafariTTSService {
     }
   }
 
-  // Unlock speech synthesis with user interaction (Safari requirement)
+  // Enhanced unlock speech synthesis with better iOS compatibility
   private async unlockSpeechSynthesis(): Promise<void> {
+    if (this.isUnlocked) {
+      console.log('✅ Safari speech synthesis already unlocked');
+      return;
+    }
+
     return new Promise((resolve, reject) => {
       try {
-        // Create a silent utterance to unlock the speech synthesis
-        const unlockUtterance = new SpeechSynthesisUtterance('');
-        unlockUtterance.volume = 0;
-        unlockUtterance.rate = 10; // Very fast to minimize delay
+        console.log('🔓 Attempting to unlock Safari speech synthesis...');
+        
+        // Create a very short, barely audible utterance to unlock the speech synthesis
+        // Using a single letter instead of empty string for better iOS compatibility
+        const unlockUtterance = new SpeechSynthesisUtterance('a');
+        unlockUtterance.volume = 0.001; // Very quiet but not silent
+        unlockUtterance.rate = 10; // Very fast to minimize audible impact
         unlockUtterance.pitch = 1;
         
         let unlocked = false;
+        let attempts = 0;
+        const maxAttempts = 3;
         
-        const onEnd = () => {
-          if (!unlocked) {
-            unlocked = true;
-            console.log('✅ Safari speech synthesis unlocked');
-            resolve();
+        const attemptUnlock = () => {
+          attempts++;
+          console.log(`🔄 Unlock attempt ${attempts}/${maxAttempts}`);
+          
+          const onEnd = () => {
+            if (!unlocked) {
+              unlocked = true;
+              this.isUnlocked = true;
+              console.log('✅ Safari speech synthesis unlocked successfully');
+              resolve();
+            }
+          };
+          
+          const onError = (error: SpeechSynthesisErrorEvent) => {
+            console.warn(`⚠️ Speech synthesis unlock attempt ${attempts} had issues:`, error);
+            
+            if (attempts < maxAttempts) {
+              // Try again with a slight delay
+              setTimeout(() => {
+                if (!unlocked) {
+                  attemptUnlock();
+                }
+              }, 500);
+            } else if (!unlocked) {
+              unlocked = true;
+              this.isUnlocked = true; // Mark as unlocked anyway
+              console.log('⚠️ Speech synthesis unlock completed with warnings - continuing anyway');
+              resolve();
+            }
+          };
+          
+          const onStart = () => {
+            console.log(`🎵 Unlock utterance ${attempts} started`);
+          };
+          
+          unlockUtterance.onend = onEnd;
+          unlockUtterance.onerror = onError;
+          unlockUtterance.onstart = onStart;
+          
+          try {
+            // Cancel any previous speech before attempting unlock
+            this.speechSynthesis!.cancel();
+            
+            // Small delay to ensure cancel is processed
+            setTimeout(() => {
+              this.speechSynthesis!.speak(unlockUtterance);
+            }, 100);
+            
+          } catch (speakError) {
+            console.error(`❌ Error speaking unlock utterance ${attempts}:`, speakError);
+            if (attempts < maxAttempts) {
+              setTimeout(() => {
+                if (!unlocked) {
+                  attemptUnlock();
+                }
+              }, 500);
+            } else {
+              onError(speakError as SpeechSynthesisErrorEvent);
+            }
           }
         };
         
-        const onError = (error: SpeechSynthesisErrorEvent) => {
-          if (!unlocked) {
-            unlocked = true;
-            console.warn('⚠️ Speech synthesis unlock had issues:', error);
-            // Don't reject - continue anyway as it might still work
-            resolve();
-          }
-        };
+        // Start the first unlock attempt
+        attemptUnlock();
         
-        unlockUtterance.onend = onEnd;
-        unlockUtterance.onerror = onError;
-        
-        // Timeout fallback
+        // Extended timeout fallback for iOS
         setTimeout(() => {
           if (!unlocked) {
             unlocked = true;
-            console.log('⏰ Speech synthesis unlock timeout - continuing anyway');
+            this.isUnlocked = true;
+            console.log('⏰ Speech synthesis unlock timeout - marking as unlocked and continuing');
             resolve();
           }
-        }, 1000);
-        
-        this.speechSynthesis!.speak(unlockUtterance);
+        }, 5000); // Increased from 1000ms to 5000ms for better iOS compatibility
         
       } catch (error) {
-        console.error('❌ Error unlocking speech synthesis:', error);
-        reject(error);
+        console.error('❌ Error in unlockSpeechSynthesis:', error);
+        // Don't reject - mark as unlocked and continue
+        this.isUnlocked = true;
+        resolve();
       }
     });
   }
@@ -101,16 +158,23 @@ export class SafariTTSService {
   // Load available voices with Safari-specific handling
   private async loadVoices(): Promise<void> {
     return new Promise((resolve) => {
+      let voiceLoadAttempts = 0;
+      const maxVoiceLoadAttempts = 10;
+      
       const loadVoicesAttempt = () => {
+        voiceLoadAttempts++;
         this.voices = this.speechSynthesis!.getVoices();
         
         if (this.voices.length > 0) {
-          console.log(`✅ Loaded ${this.voices.length} voices for Safari TTS`);
+          console.log(`✅ Loaded ${this.voices.length} voices for Safari TTS (attempt ${voiceLoadAttempts})`);
           resolve();
-        } else {
+        } else if (voiceLoadAttempts < maxVoiceLoadAttempts) {
           // Safari sometimes needs time to load voices
-          console.log('⏳ Waiting for Safari voices to load...');
-          setTimeout(loadVoicesAttempt, 100);
+          console.log(`⏳ Waiting for Safari voices to load... (attempt ${voiceLoadAttempts}/${maxVoiceLoadAttempts})`);
+          setTimeout(loadVoicesAttempt, 200);
+        } else {
+          console.warn('⚠️ No voices loaded after maximum attempts - continuing with default');
+          resolve();
         }
       };
 
@@ -118,20 +182,14 @@ export class SafariTTSService {
       if (this.speechSynthesis!.onvoiceschanged !== undefined) {
         this.speechSynthesis!.onvoiceschanged = () => {
           console.log('🔄 Safari voices changed event fired');
-          loadVoicesAttempt();
+          if (this.voices.length === 0) {
+            loadVoicesAttempt();
+          }
         };
       }
 
-      // Start loading voices
+      // Start loading voices immediately
       loadVoicesAttempt();
-      
-      // Fallback timeout
-      setTimeout(() => {
-        if (this.voices.length === 0) {
-          console.warn('⚠️ No voices loaded after timeout - using default');
-          resolve();
-        }
-      }, 3000);
     });
   }
 
@@ -142,12 +200,14 @@ export class SafariTTSService {
       return;
     }
 
-    // Priority order for voice selection
+    // Priority order for voice selection (optimized for iOS)
     const preferredVoiceNames = [
       'Samantha', // High-quality English voice on macOS/iOS
       'Alex', // Alternative high-quality voice
       'Victoria', // Another good option
       'Karen', // Fallback option
+      'Daniel', // iOS specific
+      'Moira', // iOS specific
     ];
 
     // First, try to find a preferred voice by name
@@ -179,7 +239,7 @@ export class SafariTTSService {
     console.log(`⚠️ Using fallback voice: ${this.preferredVoice.name} (${this.preferredVoice.lang})`);
   }
 
-  // Speak text with Safari-optimized settings
+  // Enhanced speak method with better iOS handling
   async speak(text: string, options: {
     rate?: number;
     pitch?: number;
@@ -196,6 +256,12 @@ export class SafariTTSService {
       throw new Error('Speech synthesis not available');
     }
 
+    // Ensure we're unlocked before speaking
+    if (!this.isUnlocked) {
+      console.log('🔓 Re-attempting unlock before speaking...');
+      await this.unlockSpeechSynthesis();
+    }
+
     // Stop any current speech
     this.stop();
 
@@ -203,25 +269,41 @@ export class SafariTTSService {
       try {
         const utterance = new SpeechSynthesisUtterance(text);
         
-        // Configure utterance with Safari-optimized settings
-        utterance.rate = options.rate ?? 0.9; // Slightly slower for clarity
+        // Configure utterance with iOS-optimized settings
+        utterance.rate = options.rate ?? 0.8; // Slightly slower for better iOS compatibility
         utterance.pitch = options.pitch ?? 1.0;
-        utterance.volume = options.volume ?? 0.8; // Slightly lower to avoid distortion
+        utterance.volume = options.volume ?? 0.9; // Higher volume for iOS
         
         // Use preferred voice if available
         if (this.preferredVoice) {
           utterance.voice = this.preferredVoice;
+          console.log(`🎵 Using voice: ${this.preferredVoice.name}`);
         }
 
         let hasEnded = false;
         let hasStarted = false;
+        let startTimeout: NodeJS.Timeout;
+        let endTimeout: NodeJS.Timeout;
 
-        // Event handlers
+        const cleanup = () => {
+          if (startTimeout) clearTimeout(startTimeout);
+          if (endTimeout) clearTimeout(endTimeout);
+        };
+
+        // Event handlers with enhanced iOS compatibility
         utterance.onstart = () => {
           hasStarted = true;
           this.isPlaying = true;
+          cleanup();
           console.log('🎵 Safari TTS started speaking');
           options.onStart?.();
+          
+          // Set a reasonable timeout for completion
+          endTimeout = setTimeout(() => {
+            if (!hasEnded) {
+              console.warn('⏰ Safari TTS taking longer than expected, but continuing...');
+            }
+          }, Math.max(text.length * 100, 5000)); // Dynamic timeout based on text length
         };
 
         utterance.onend = () => {
@@ -229,6 +311,7 @@ export class SafariTTSService {
             hasEnded = true;
             this.isPlaying = false;
             this.currentUtterance = null;
+            cleanup();
             console.log('✅ Safari TTS finished speaking');
             options.onEnd?.();
             resolve();
@@ -240,6 +323,7 @@ export class SafariTTSService {
             hasEnded = true;
             this.isPlaying = false;
             this.currentUtterance = null;
+            cleanup();
             console.error('❌ Safari TTS error:', error);
             options.onError?.(error);
             reject(new Error(`Speech synthesis error: ${error.error}`));
@@ -258,18 +342,45 @@ export class SafariTTSService {
         // Store current utterance
         this.currentUtterance = utterance;
 
-        // Start speaking
-        this.speechSynthesis.speak(utterance);
-
-        // Safari timeout fallback
-        setTimeout(() => {
-          if (!hasStarted && !hasEnded) {
-            console.warn('⏰ Safari TTS timeout - speech may not have started');
-            hasEnded = true;
-            this.stop();
-            reject(new Error('Speech synthesis timeout'));
+        // Enhanced start mechanism for iOS
+        try {
+          // Ensure speech synthesis is ready
+          if (this.speechSynthesis.paused) {
+            this.speechSynthesis.resume();
           }
-        }, 10000);
+          
+          // Cancel any lingering speech
+          this.speechSynthesis.cancel();
+          
+          // Small delay to ensure cancel is processed
+          setTimeout(() => {
+            try {
+              console.log(`🎵 Starting Safari TTS for text: "${text.substring(0, 50)}..."`);
+              this.speechSynthesis!.speak(utterance);
+              
+              // Timeout for start detection
+              startTimeout = setTimeout(() => {
+                if (!hasStarted && !hasEnded) {
+                  console.warn('⏰ Safari TTS timeout - speech may not have started');
+                  hasEnded = true;
+                  this.stop();
+                  cleanup();
+                  reject(new Error('Speech synthesis timeout'));
+                }
+              }, 15000); // Increased timeout for iOS
+              
+            } catch (speakError) {
+              console.error('❌ Error starting Safari TTS:', speakError);
+              cleanup();
+              reject(speakError);
+            }
+          }, 100);
+          
+        } catch (error) {
+          console.error('❌ Error preparing Safari TTS:', error);
+          cleanup();
+          reject(error);
+        }
 
       } catch (error) {
         console.error('❌ Error creating Safari TTS utterance:', error);
@@ -278,11 +389,19 @@ export class SafariTTSService {
     });
   }
 
-  // Stop current speech
+  // Enhanced stop method
   stop(): void {
     if (this.speechSynthesis && this.isPlaying) {
       console.log('🛑 Stopping Safari TTS');
-      this.speechSynthesis.cancel();
+      try {
+        this.speechSynthesis.cancel();
+        // Also try pause as a fallback
+        if (this.speechSynthesis.speaking) {
+          this.speechSynthesis.pause();
+        }
+      } catch (error) {
+        console.warn('⚠️ Error stopping Safari TTS:', error);
+      }
       this.isPlaying = false;
       this.currentUtterance = null;
     }
@@ -320,6 +439,7 @@ export class SafariTTSService {
     isIOS: boolean;
     supportsTTS: boolean;
     voiceCount: number;
+    isUnlocked: boolean;
   } {
     const userAgent = navigator.userAgent;
     const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
@@ -329,8 +449,15 @@ export class SafariTTSService {
       isSafari,
       isIOS,
       supportsTTS: SafariTTSService.isSupported(),
-      voiceCount: this.voices.length
+      voiceCount: this.voices.length,
+      isUnlocked: this.isUnlocked
     };
+  }
+
+  // Force re-unlock (useful for debugging)
+  async forceUnlock(): Promise<void> {
+    this.isUnlocked = false;
+    await this.unlockSpeechSynthesis();
   }
 }
 
