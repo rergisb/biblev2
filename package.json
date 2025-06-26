@@ -14,9 +14,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "clsx": "^2.0.0",
-    "tailwind-merge": "^2.2.0",
-    "web-vitals": "^3.5.0",
-    "lru-cache": "^10.1.0"
+    "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
