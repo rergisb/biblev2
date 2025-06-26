@@ -62,16 +62,14 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                     ? 'bg-gray-200 text-gray-700 animate-pulse' 
                     : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
                 }`}
-                title={hasAudioCache ? "Play cached audio" : "Generate and play audio"}
+                title="Play with enhanced audio (Safari TTS or ElevenLabs)"
               >
                 <Volume2 className="w-3.5 h-3.5" />
               </button>
-              {hasAudioCache && (
-                <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                  <Download className="w-3 h-3" />
-                  <span>Cached</span>
-                </div>
-              )}
+              <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                <Volume2 className="w-3 h-3" />
+                <span>TTS</span>
+              </div>
             </div>
           )}
         </div>

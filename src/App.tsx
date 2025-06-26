@@ -6,7 +6,7 @@ import { OnboardingScreen } from './components/OnboardingScreen';
 import { SEOOptimization } from './components/SEOOptimization';
 import { PerformanceOptimization } from './components/PerformanceOptimization';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
-import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
+import { enhancedAudio, initializeAudio, speakText, stopSpeaking } from './services/enhancedAudioService';
 import { generateGeminiResponse } from './services/geminiService';
 import { 
   startRhythmicPulses, 
@@ -54,6 +54,7 @@ function App() {
   const [audioContextReady, setAudioContextReady] = useState(false);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [audioInitializationAttempted, setAudioInitializationAttempted] = useState(false);
+  const [audioServiceStatus, setAudioServiceStatus] = useState<any>(null);
   
   // Chat history state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -83,12 +84,13 @@ function App() {
   // Detect iOS for special handling
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 
   // DEFINE FUNCTIONS THAT ARE USED IN HOOKS FIRST
   
   const stopAudio = useCallback(() => {
-    // Stop the global audio
-    stopCurrentAudio();
+    // Stop the enhanced audio service
+    stopSpeaking();
     setIsPlayingAudio(false);
     setIsPlayingGreeting(false);
     setPlayingMessageId(null);
@@ -114,9 +116,11 @@ function App() {
       hasCompletedOnboarding,
       microphonePermissionStatus,
       showMainApp,
-      browserSupportsSpeechRecognition
+      browserSupportsSpeechRecognition,
+      isSafari,
+      isIOS
     });
-  }, [hasCompletedOnboarding, microphonePermissionStatus, showMainApp, browserSupportsSpeechRecognition]);
+  }, [hasCompletedOnboarding, microphonePermissionStatus, showMainApp, browserSupportsSpeechRecognition, isSafari, isIOS]);
 
   // Initialize app state based on onboarding completion - SIMPLIFIED
   useEffect(() => {
@@ -182,7 +186,7 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Enhanced initialization effect for mobile devices - IMPROVED ERROR HANDLING
+  // Enhanced initialization effect with Safari TTS support
   useEffect(() => {
     const initializeApp = async () => {
       // Only initialize if we're in the main app
@@ -194,23 +198,32 @@ function App() {
       }
       
       greetingInitializedRef.current = true;
-      console.log('🎵 Initializing app - single time only');
+      console.log('🎵 Initializing app with enhanced audio support...');
       
       try {
-        // Initialize audio context first - but don't fail if it doesn't work
+        // Initialize enhanced audio service
         if (!audioContextInitializedRef.current) {
-          console.log('🔊 Preparing audio context...');
+          console.log('🔊 Preparing enhanced audio service...');
           try {
-            await prepareAudioContext();
+            await initializeAudio();
             await prepareAudioFeedback();
+            
+            // Get audio service status
+            const status = enhancedAudio.getStatus();
+            setAudioServiceStatus(status);
+            
             audioContextInitializedRef.current = true;
             setAudioContextReady(true);
             setUserHasInteracted(true);
-            console.log('✅ Audio context prepared');
+            
+            console.log('✅ Enhanced audio service prepared:', status);
           } catch (audioError) {
-            console.warn('⚠️ Audio context preparation failed (this is normal on mobile):', audioError);
-            // Don't set error here - we'll handle it gracefully
+            console.warn('⚠️ Audio service preparation failed:', audioError);
             setAudioInitializationAttempted(true);
+            
+            // Still try to get status for fallback options
+            const status = enhancedAudio.getStatus();
+            setAudioServiceStatus(status);
           }
         }
         
@@ -223,17 +236,22 @@ function App() {
             greetingPlayingRef.current = true;
             setIsPlayingGreeting(true);
             
-            console.log('🎤 Playing welcome greeting...');
+            console.log('🎤 Playing welcome greeting with enhanced audio...');
             const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
             
             try {
-              const audioBuffer = await synthesizeSpeech(greetingText);
-              await playAudioBuffer(audioBuffer);
-              setHasPlayedGreeting(true);
-              console.log('✅ Greeting played successfully');
+              await speakText(greetingText, {
+                onStart: () => console.log('🎵 Greeting started'),
+                onEnd: () => {
+                  setHasPlayedGreeting(true);
+                  console.log('✅ Greeting completed successfully');
+                },
+                onError: (error) => {
+                  console.warn('⚠️ Greeting playback failed:', error);
+                }
+              });
             } catch (greetingError) {
-              console.warn('⚠️ Greeting playback failed (this is normal on mobile):', greetingError);
-              // Don't show error for greeting failures
+              console.warn('⚠️ Greeting playback failed:', greetingError);
             }
           }
         }, greetingDelay);
@@ -447,26 +465,14 @@ function App() {
       // Stop pulses before playing AI response
       stopRhythmicPulses();
       
-      // Convert AI response to speech - but handle audio failures gracefully
-      console.log('🔊 Converting to speech...');
-      let audioBuffer: ArrayBuffer | undefined;
+      // Add AI response to chat first (so user can read it immediately)
+      const aiMessage = addMessage(aiText, false, undefined);
+      
+      // Convert AI response to speech using enhanced audio service
+      console.log('🔊 Converting to speech with enhanced audio...');
       
       try {
-        audioBuffer = await synthesizeSpeech(aiText);
-        console.log('✅ Speech synthesis successful');
-      } catch (speechError) {
-        console.warn('⚠️ Speech synthesis failed:', speechError);
-        // Continue without audio - don't fail the entire interaction
-      }
-      
-      // Add AI response to chat WITH audio buffer for caching (if available)
-      const aiMessage = addMessage(aiText, false, undefined, audioBuffer);
-      if (audioBuffer) {
-        console.log('💾 Audio cached for message:', aiMessage.id);
-      }
-      
-      // Auto-play response with haptic feedback - only if audio is available and context is ready
-      if (audioBuffer && audioContextReady) {
+        // Auto-play response with haptic feedback
         if ('vibrate' in navigator) {
           navigator.vibrate([100, 50, 100]);
         }
@@ -474,41 +480,39 @@ function App() {
         setIsPlayingAudio(true);
         setPlayingMessageId(aiMessage.id);
         
-        try {
-          await playAudioBuffer(audioBuffer);
-          setIsPlayingAudio(false);
-          setPlayingMessageId(null);
-        } catch (audioError) {
-          console.error('❌ Audio playback failed:', audioError);
-          setIsPlayingAudio(false);
-          setPlayingMessageId(null);
-          
-          // Play error sound if possible
-          try {
-            await playErrorSound();
-          } catch (e) {
-            console.log('Error sound also failed');
-          }
-          
-          // Show user-friendly error for audio issues - but make it dismissible
-          if (audioError instanceof Error) {
-            if (audioError.message.includes('user interaction') || audioError.message.includes('tap the screen')) {
+        await speakText(aiText, {
+          preferElevenLabs: !isSafari, // Prefer Safari TTS on Safari for better compatibility
+          onStart: () => {
+            console.log('🎵 Enhanced audio playback started');
+          },
+          onEnd: () => {
+            console.log('✅ Enhanced audio playback completed');
+            setIsPlayingAudio(false);
+            setPlayingMessageId(null);
+          },
+          onError: (error) => {
+            console.error('❌ Enhanced audio playback failed:', error);
+            setIsPlayingAudio(false);
+            setPlayingMessageId(null);
+            
+            // Show user-friendly error message
+            if (error.message.includes('user interaction')) {
               setError('Audio needs to be enabled. Tap anywhere on the screen to enable audio, then try again.');
-            } else if (audioError.message.includes('not supported')) {
+            } else if (error.message.includes('not supported')) {
               setError('Audio not supported on this device. You can still read the responses.');
             } else {
               setError('Audio playback failed. You can still read the responses or try tapping the screen to enable audio.');
             }
-          } else {
-            setError('Audio playback failed. You can still read the responses.');
           }
-        }
-      } else if (!audioBuffer) {
-        // Speech synthesis failed, but we still have the text response
+        });
+        
+      } catch (speechError) {
+        console.warn('⚠️ Speech synthesis failed:', speechError);
+        setIsPlayingAudio(false);
+        setPlayingMessageId(null);
+        
+        // Don't show error for speech synthesis failures - user can still read the text
         console.log('📝 Response available as text only');
-      } else if (!audioContextReady) {
-        // Audio context not ready, show helpful message
-        setError('Audio needs to be enabled. Tap anywhere on the screen to enable audio features.');
       }
       
     } catch (error) {
@@ -555,34 +559,38 @@ function App() {
     setIsPlayingAudio(true);
 
     try {
-      let audioBuffer = message.audioBuffer;
-
-      if (audioBuffer) {
-        // Use cached audio - no API call needed!
-        console.log('🎵 Playing cached audio for message:', messageId);
-        await playAudioBuffer(audioBuffer);
-      } else {
-        // Generate audio and cache it
-        console.log('🔊 Generating and caching audio for message:', messageId);
-        audioBuffer = await synthesizeSpeech(message.text);
-        
-        // Update message with cached audio
-        updateMessageWithAudio(messageId, audioBuffer);
-        
-        // Play the audio
-        await playAudioBuffer(audioBuffer);
-      }
+      console.log('🎵 Playing message audio with enhanced service:', messageId);
+      
+      await speakText(message.text, {
+        preferElevenLabs: !isSafari, // Prefer Safari TTS on Safari
+        onStart: () => {
+          console.log('🎵 Message audio playback started');
+        },
+        onEnd: () => {
+          console.log('✅ Message audio playback completed');
+          setIsPlayingAudio(false);
+          setPlayingMessageId(null);
+        },
+        onError: (error) => {
+          console.error('❌ Message audio playback failed:', error);
+          setIsPlayingAudio(false);
+          setPlayingMessageId(null);
+          setError('Failed to play audio. Please try tapping the screen to enable audio features.');
+        }
+      });
+      
     } catch (error) {
       console.error('❌ Error playing message audio:', error);
+      setIsPlayingAudio(false);
+      setPlayingMessageId(null);
+      
       try {
         await playErrorSound();
       } catch (e) {
         console.log('Error sound not available');
       }
+      
       setError('Failed to play audio. Please try tapping the screen to enable audio features.');
-    } finally {
-      setIsPlayingAudio(false);
-      setPlayingMessageId(null);
     }
   };
 
@@ -598,15 +606,20 @@ function App() {
       // Reset error state
       setError(null);
       
-      // Initialize audio if not already done
+      // Initialize enhanced audio service if not already done
       if (!audioContextInitializedRef.current) {
-        console.log('🔊 Initializing audio context via user interaction...');
-        await prepareAudioContext();
+        console.log('🔊 Initializing enhanced audio service via user interaction...');
+        await initializeAudio();
         await prepareAudioFeedback();
+        
+        // Get updated status
+        const status = enhancedAudio.getStatus();
+        setAudioServiceStatus(status);
+        
         audioContextInitializedRef.current = true;
         setAudioContextReady(true);
         setUserHasInteracted(true);
-        console.log('✅ Audio context prepared via interaction');
+        console.log('✅ Enhanced audio service prepared via interaction:', status);
       }
       
       setUserHasInteracted(true);
@@ -619,10 +632,13 @@ function App() {
         
         try {
           const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-          const audioBuffer = await synthesizeSpeech(greetingText);
-          await playAudioBuffer(audioBuffer);
-          setHasPlayedGreeting(true);
-          console.log('✅ Manual greeting played');
+          await speakText(greetingText, {
+            preferElevenLabs: !isSafari,
+            onEnd: () => {
+              setHasPlayedGreeting(true);
+              console.log('✅ Manual greeting played');
+            }
+          });
         } catch (greetingError) {
           console.error('❌ Manual greeting failed:', greetingError);
         } finally {
@@ -762,8 +778,20 @@ function App() {
               />
             </div>
 
-            {/* Right - Spacer for symmetry */}
-            <div className="w-12"></div>
+            {/* Right - Audio Status Indicator */}
+            <div className="w-12 flex justify-center">
+              {audioServiceStatus && (
+                <div className={`w-3 h-3 rounded-full ${
+                  audioServiceStatus.safariTTSAvailable || audioServiceStatus.elevenLabsAvailable
+                    ? 'bg-green-500'
+                    : 'bg-orange-500'
+                }`} title={
+                  audioServiceStatus.safariTTSAvailable || audioServiceStatus.elevenLabsAvailable
+                    ? 'Audio available'
+                    : 'Audio limited'
+                }></div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -879,11 +907,25 @@ function App() {
               </div>
             )}
 
-            {/* Audio Context Status - IMPROVED */}
-            {!audioContextReady && audioInitializationAttempted && !error && (
+            {/* Enhanced Audio Status Display */}
+            {audioServiceStatus && !audioContextReady && audioInitializationAttempted && !error && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl">
-                <p className="text-blue-800 text-sm text-center">
+                <p className="text-blue-800 text-sm text-center mb-2">
                   🔊 <strong>Enable Audio:</strong> Tap anywhere on the screen to enable voice features
+                </p>
+                {isSafari && audioServiceStatus.safariTTSAvailable && (
+                  <p className="text-blue-700 text-xs text-center">
+                    🍎 Safari TTS available for voice responses
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Safari-specific audio notice */}
+            {isSafari && audioServiceStatus?.safariTTSAvailable && !audioServiceStatus?.elevenLabsAvailable && (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-2xl">
+                <p className="text-green-800 text-sm text-center">
+                  🍎 <strong>Safari TTS Active:</strong> Using built-in voice synthesis for optimal compatibility
                 </p>
               </div>
             )}
@@ -906,7 +948,7 @@ function App() {
               </div>
             )}
 
-            {/* Visual Interaction Hint - Moved above status messages */}
+            {/* Visual Interaction Hint */}
             <div className="text-center">
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
                 isPlayingAudio || isPlayingGreeting || isRecording || isProcessing
@@ -971,6 +1013,11 @@ function App() {
                     <span className="text-gray-700 font-medium speakable-content">🔊 Speaking God's word...</span>
                   </div>
                   <p className="text-gray-500 text-xs">Tap anywhere to stop and speak</p>
+                  {audioServiceStatus?.currentMethod && (
+                    <p className="text-gray-400 text-xs">
+                      Using {audioServiceStatus.currentMethod === 'safari-tts' ? 'Safari TTS' : 'ElevenLabs'}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="text-center">
