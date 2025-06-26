@@ -46,8 +46,6 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasPlayedGreeting, setHasPlayedGreeting] = useState(false);
-  const [isPlayingGreeting, setIsPlayingGreeting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [showDebugConsole, setShowDebugConsole] = useState(false);
@@ -66,9 +64,7 @@ function App() {
   // Add ref to track if we're currently processing to prevent duplicates
   const processingRef = useRef(false);
   
-  // Add refs to prevent duplicate greeting initialization
-  const greetingInitializedRef = useRef(false);
-  const greetingPlayingRef = useRef(false);
+  // Add refs to prevent duplicate initialization
   const audioContextInitializedRef = useRef(false);
 
   const {
@@ -94,7 +90,6 @@ function App() {
     // Stop the enhanced audio service
     stopSpeaking();
     setIsPlayingAudio(false);
-    setIsPlayingGreeting(false);
     setPlayingMessageId(null);
     // Also stop any rhythmic pulses
     stopRhythmicPulses();
@@ -188,81 +183,48 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Enhanced initialization effect with Safari TTS support
+  // Simplified initialization effect without greeting
   useEffect(() => {
     const initializeApp = async () => {
       // Only initialize if we're in the main app
       if (!showMainApp) return;
       
       // Prevent multiple initializations
-      if (greetingInitializedRef.current || !browserSupportsSpeechRecognition) {
+      if (audioContextInitializedRef.current || !browserSupportsSpeechRecognition) {
         return;
       }
       
-      greetingInitializedRef.current = true;
+      audioContextInitializedRef.current = true;
       console.log('🎵 Initializing app with enhanced audio support...');
       
       try {
         // Initialize enhanced audio service
-        if (!audioContextInitializedRef.current) {
-          console.log('🔊 Preparing enhanced audio service...');
-          try {
-            await initializeAudio();
-            await prepareAudioFeedback();
-            
-            // Get audio service status
-            const status = enhancedAudio.getStatus();
-            setAudioServiceStatus(status);
-            
-            audioContextInitializedRef.current = true;
-            setAudioContextReady(true);
-            setUserHasInteracted(true);
-            
-            console.log('✅ Enhanced audio service prepared:', status);
-          } catch (audioError) {
-            console.warn('⚠️ Audio service preparation failed:', audioError);
-            setAudioInitializationAttempted(true);
-            
-            // Still try to get status for fallback options
-            const status = enhancedAudio.getStatus();
-            setAudioServiceStatus(status);
-          }
+        console.log('🔊 Preparing enhanced audio service...');
+        try {
+          await initializeAudio();
+          await prepareAudioFeedback();
+          
+          // Get audio service status
+          const status = enhancedAudio.getStatus();
+          setAudioServiceStatus(status);
+          
+          setAudioContextReady(true);
+          setUserHasInteracted(true);
+          
+          console.log('✅ Enhanced audio service prepared:', status);
+        } catch (audioError) {
+          console.warn('⚠️ Audio service preparation failed:', audioError);
+          setAudioInitializationAttempted(true);
+          
+          // Still try to get status for fallback options
+          const status = enhancedAudio.getStatus();
+          setAudioServiceStatus(status);
         }
-        
-        // For mobile devices, wait a bit longer before attempting greeting
-        const greetingDelay = isMobile ? 2000 : 1000;
-        
-        setTimeout(async () => {
-          // Only play greeting if audio context is ready and not already played
-          if (!greetingPlayingRef.current && !hasPlayedGreeting && audioContextReady) {
-            greetingPlayingRef.current = true;
-            setIsPlayingGreeting(true);
-            
-            console.log('🎤 Playing welcome greeting with enhanced audio...');
-            const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-            
-            try {
-              await speakText(greetingText, {
-                onStart: () => console.log('🎵 Greeting started'),
-                onEnd: () => {
-                  setHasPlayedGreeting(true);
-                  console.log('✅ Greeting completed successfully');
-                },
-                onError: (error) => {
-                  console.warn('⚠️ Greeting playback failed:', error);
-                }
-              });
-            } catch (greetingError) {
-              console.warn('⚠️ Greeting playback failed:', greetingError);
-            }
-          }
-        }, greetingDelay);
         
       } catch (error) {
         console.error('❌ App initialization failed:', error);
         
         // Reset flags on error to allow retry
-        greetingInitializedRef.current = false;
         audioContextInitializedRef.current = false;
         setUserHasInteracted(false);
         setAudioContextReady(false);
@@ -271,16 +233,13 @@ function App() {
         if (error instanceof Error && !error.message.includes('audio') && !error.message.includes('Audio')) {
           setError('There was an issue setting up the app. Please refresh the page and try again.');
         }
-      } finally {
-        greetingPlayingRef.current = false;
-        setIsPlayingGreeting(false);
       }
     };
 
     // Only initialize once after a short delay
-    const timer = setTimeout(initializeApp, 1500);
+    const timer = setTimeout(initializeApp, 500);
     return () => clearTimeout(timer);
-  }, [showMainApp, browserSupportsSpeechRecognition, hasPlayedGreeting, audioContextReady]);
+  }, [showMainApp, browserSupportsSpeechRecognition, audioContextReady]);
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
@@ -314,8 +273,6 @@ function App() {
     return () => {
       stopAudio();
       // Reset initialization flags on unmount
-      greetingInitializedRef.current = false;
-      greetingPlayingRef.current = false;
       audioContextInitializedRef.current = false;
     };
   }, [stopAudio]);
@@ -627,28 +584,6 @@ function App() {
       setUserHasInteracted(true);
       setAudioInitializationAttempted(true);
       
-      // Play greeting if not already played
-      if (!hasPlayedGreeting && !greetingPlayingRef.current) {
-        greetingPlayingRef.current = true;
-        setIsPlayingGreeting(true);
-        
-        try {
-          const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-          await speakText(greetingText, {
-            preferElevenLabs: !isSafari,
-            onEnd: () => {
-              setHasPlayedGreeting(true);
-              console.log('✅ Manual greeting played');
-            }
-          });
-        } catch (greetingError) {
-          console.error('❌ Manual greeting failed:', greetingError);
-        } finally {
-          greetingPlayingRef.current = false;
-          setIsPlayingGreeting(false);
-        }
-      }
-      
     } catch (error) {
       console.error('❌ Manual interaction failed:', error);
       setAudioInitializationAttempted(true);
@@ -710,7 +645,7 @@ function App() {
     // Handle first interaction
     await handleFirstInteraction();
     
-    if (isPlayingAudio || isPlayingGreeting) {
+    if (isPlayingAudio) {
       // If audio is playing, stop it
       handleStopAudio();
     } else if (isRecording) {
@@ -812,7 +747,7 @@ function App() {
         {/* Main Interactive Area - Single unified click handler */}
         <div 
           className={`relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24 transition-all duration-300 ${
-            isPlayingAudio || isPlayingGreeting || isRecording || isProcessing
+            isPlayingAudio || isRecording || isProcessing
               ? 'cursor-pointer bg-gradient-to-br from-gray-50/30 to-gray-100/30'
               : 'cursor-pointer hover:bg-gray-50/20'
           }`}
@@ -825,7 +760,7 @@ function App() {
               {/* Main Visualizer */}
               <VoiceVisualizer
                 isRecording={isRecording}
-                isPlaying={isPlayingAudio || isPlayingGreeting}
+                isPlaying={isPlayingAudio}
                 audioLevel={isRecording ? 0.8 : isPlayingAudio ? 0.6 : 0.1}
               />
               
@@ -834,7 +769,7 @@ function App() {
                 <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
                   isRecording 
                     ? 'bg-gray-800/10 shadow-lg shadow-gray-800/20' 
-                    : isPlayingAudio || isPlayingGreeting
+                    : isPlayingAudio
                     ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
                     : isProcessing
                     ? 'bg-gray-600/10 shadow-lg shadow-gray-600/20 animate-pulse'
@@ -843,13 +778,13 @@ function App() {
                   <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
                     isRecording 
                       ? 'bg-gray-800/20 animate-pulse' 
-                      : isPlayingAudio || isPlayingGreeting
+                      : isPlayingAudio
                       ? 'bg-gray-700/20 animate-pulse'
                       : isProcessing
                       ? 'bg-gray-600/20 animate-pulse'
                       : 'bg-gray-200/50'
                   }`}>
-                    {isPlayingAudio || isPlayingGreeting ? (
+                    {isPlayingAudio ? (
                       <Square className="w-6 h-6 text-gray-700 fill-current" />
                     ) : isProcessing ? (
                       <div className="flex gap-1">
@@ -869,11 +804,11 @@ function App() {
               </div>
               
               {/* Interactive state overlay */}
-              {(isPlayingAudio || isPlayingGreeting || isRecording || isProcessing) && (
+              {(isPlayingAudio || isRecording || isProcessing) && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className={`absolute inset-0 rounded-full animate-pulse ${
                     isRecording ? 'bg-gray-800/10' :
-                    isPlayingAudio || isPlayingGreeting ? 'bg-gray-700/10' :
+                    isPlayingAudio ? 'bg-gray-700/10' :
                     isProcessing ? 'bg-gray-600/10' : ''
                   }`}></div>
                 </div>
@@ -958,18 +893,18 @@ function App() {
             {/* Visual Interaction Hint */}
             <div className="text-center">
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 ${
-                isPlayingAudio || isPlayingGreeting || isRecording || isProcessing
+                isPlayingAudio || isRecording || isProcessing
                   ? 'bg-gray-200/50 text-gray-700'
                   : 'bg-gray-100/50 text-gray-600 hover:bg-gray-200/50'
               }`}>
                 <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  isPlayingAudio || isPlayingGreeting ? 'bg-gray-700 animate-pulse' :
+                  isPlayingAudio ? 'bg-gray-700 animate-pulse' :
                   isRecording ? 'bg-gray-800 animate-pulse' :
                   isProcessing ? 'bg-gray-600 animate-pulse' :
                   'bg-gray-500'
                 }`}></div>
                 <span className="text-sm font-medium">
-                  {isPlayingAudio || isPlayingGreeting ? 'Tap to stop audio' :
+                  {isPlayingAudio ? 'Tap to stop audio' :
                    isRecording ? 'Tap to stop recording' :
                    isProcessing ? 'Processing...' :
                    'Tap anywhere to start'}
@@ -979,15 +914,7 @@ function App() {
 
             {/* Status Messages */}
             <div className="text-center min-h-[60px] flex items-center justify-center">
-              {isPlayingGreeting ? (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
-                    <p className="text-gray-700 font-medium speakable-content">Welcome to your Bible companion...</p>
-                  </div>
-                  <p className="text-gray-500 text-xs">Tap anywhere to stop</p>
-                </div>
-              ) : isRecording ? (
+              {isRecording ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-2 h-2 bg-gray-800 rounded-full animate-pulse"></div>
