@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 interface VoiceVisualizerProps {
   isRecording: boolean;
   isPlaying: boolean;
+  isProcessing?: boolean;
   audioLevel?: number;
   onClick?: () => void;
 }
@@ -10,6 +11,7 @@ interface VoiceVisualizerProps {
 export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
   isRecording,
   isPlaying,
+  isProcessing = false,
   audioLevel = 0,
   onClick
 }) => {
@@ -31,7 +33,64 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
       
       ctx.clearRect(0, 0, width, height);
       
-      if (isRecording || isPlaying) {
+      if (isProcessing) {
+        // Processing state - distinctive circular pulse animation
+        const time = Date.now() * 0.004;
+        const rings = 4;
+        
+        for (let i = 0; i < rings; i++) {
+          const ringProgress = (i / rings);
+          const baseRadius = 30 + (i * 20);
+          
+          // Create a pulsing effect that's different from recording/playing
+          const pulsePhase = (time + ringProgress * Math.PI) % (Math.PI * 2);
+          const pulseIntensity = (Math.sin(pulsePhase) + 1) * 0.5; // 0 to 1
+          const radius = baseRadius + pulseIntensity * 15;
+          
+          // Processing uses a distinct color pattern
+          const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+          const alpha = (0.6 - ringProgress * 0.4) * pulseIntensity;
+          
+          gradient.addColorStop(0, `rgba(75, 85, 99, ${alpha * 0.8})`); // gray-600
+          gradient.addColorStop(0.5, `rgba(107, 114, 128, ${alpha * 0.6})`); // gray-500
+          gradient.addColorStop(1, `rgba(156, 163, 175, ${alpha * 0.2})`); // gray-400
+          
+          ctx.beginPath();
+          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+          ctx.fillStyle = gradient;
+          ctx.fill();
+          
+          // Add subtle glow
+          ctx.shadowColor = '#6B7280'; // gray-500
+          ctx.shadowBlur = 10 - (ringProgress * 5);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+        
+        // Central processing indicator - rotating dots
+        const dotCount = 8;
+        const dotRadius = 40;
+        const rotationSpeed = time * 2;
+        
+        for (let i = 0; i < dotCount; i++) {
+          const angle = (i / dotCount) * Math.PI * 2 + rotationSpeed;
+          const dotX = centerX + Math.cos(angle) * dotRadius;
+          const dotY = centerY + Math.sin(angle) * dotRadius;
+          
+          const dotSize = 3 + Math.sin(time * 3 + i) * 2;
+          const dotAlpha = 0.4 + Math.sin(time * 2 + i * 0.5) * 0.3;
+          
+          const dotGradient = ctx.createRadialGradient(dotX, dotY, 0, dotX, dotY, dotSize);
+          dotGradient.addColorStop(0, `rgba(75, 85, 99, ${dotAlpha})`);
+          dotGradient.addColorStop(1, `rgba(75, 85, 99, 0)`);
+          
+          ctx.beginPath();
+          ctx.arc(dotX, dotY, dotSize, 0, Math.PI * 2);
+          ctx.fillStyle = dotGradient;
+          ctx.fill();
+        }
+        
+      } else if (isRecording || isPlaying) {
         // Active state - animated circular waves
         const time = Date.now() * 0.003;
         const rings = 5;
@@ -152,7 +211,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isRecording, isPlaying, audioLevel]);
+  }, [isRecording, isPlaying, isProcessing, audioLevel]);
 
   return (
     <div className="relative">
@@ -163,10 +222,12 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         className="w-72 h-72 rounded-full"
         style={{ filter: 'blur(0.5px)' }}
       />
-      {/* Additional glow overlay - updated styling for idle state and made clickable */}
+      {/* Additional glow overlay - updated styling for all states and made clickable */}
       <div 
         className={`absolute inset-0 rounded-full transition-all duration-500 cursor-pointer ${
-          isRecording 
+          isProcessing
+            ? 'bg-gray-600/10 shadow-xl shadow-gray-600/25 animate-pulse'
+            : isRecording 
             ? 'bg-gray-800/5 shadow-2xl shadow-gray-800/20' 
             : isPlaying
             ? 'bg-gray-600/5 shadow-2xl shadow-gray-600/20'

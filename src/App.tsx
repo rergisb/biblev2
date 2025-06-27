@@ -6,6 +6,7 @@ import { ChatHistory } from './components/ChatHistory';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
 import { generateGeminiResponse } from './services/geminiService';
+import { playPulseSound } from './utils/audioUtils';
 
 interface Message {
   id: string;
@@ -73,6 +74,15 @@ function App() {
       setError(speechError);
     }
   }, [speechError]);
+
+  // Play pulse sound when processing starts
+  useEffect(() => {
+    if (isProcessing) {
+      playPulseSound().catch(error => {
+        console.log('Pulse sound failed:', error);
+      });
+    }
+  }, [isProcessing]);
 
   // Create new session when first message is added
   useEffect(() => {
@@ -541,45 +551,10 @@ function App() {
             <VoiceVisualizer
               isRecording={isRecording}
               isPlaying={isPlayingAudio || isPlayingGreeting}
+              isProcessing={isProcessing}
               audioLevel={isRecording ? 0.8 : isPlayingAudio ? 0.6 : 0.1}
               onClick={handleVisualizerClick}
             />
-            
-            {/* Central Status Indicator */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
-                isRecording 
-                  ? 'bg-gray-800/10 shadow-lg shadow-gray-800/20' 
-                  : isPlayingAudio || isPlayingGreeting
-                  ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
-                  : 'bg-gray-100/50'
-              }`}>
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  isRecording 
-                    ? 'bg-gray-800/20 animate-pulse' 
-                    : isPlayingAudio || isPlayingGreeting
-                    ? 'bg-gray-700/20 animate-pulse'
-                    : 'bg-gray-200/50'
-                }`}>
-                  {isPlayingAudio || isPlayingGreeting ? (
-                    <Square className={`w-6 h-6 text-gray-700 fill-current pointer-events-auto cursor-pointer`} />
-                  ) : (
-                    <Mic className={`w-8 h-8 transition-colors duration-300 ${
-                      isRecording 
-                        ? 'text-gray-800' 
-                        : 'text-gray-500'
-                    }`} />
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* Click hint overlay for audio playing state - using gray instead of red */}
-            {(isPlayingAudio || isPlayingGreeting) && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse"></div>
-              </div>
-            )}
           </div>
         </div>
 
