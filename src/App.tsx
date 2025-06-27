@@ -4,7 +4,7 @@ import { VoiceVisualizer } from './components/VoiceVisualizer';
 import { ApiConfigModal } from './components/ApiConfigModal';
 import { ChatHistory } from './components/ChatHistory';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
-import { synthesizeSpeech, stopCurrentSpeech, isSpeechSynthesisSupported, isSpeaking } from './services/speechService';
+import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
 import { generateGeminiResponse } from './services/geminiService';
 
 interface Message {
@@ -12,6 +12,7 @@ interface Message {
   text: string;
   isUser: boolean;
   timestamp: Date;
+  audioBuffer?: ArrayBuffer;
   confidence?: number;
 }
 
@@ -33,7 +34,7 @@ function App() {
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [pendingTranscript, setPendingTranscript] = useState<string>('');
   const [userHasInteracted, setUserHasInteracted] = useState(false);
-  const [speechReady, setSpeechReady] = useState(false);
+  const [audioContextReady, setAudioContextReady] = useState(false);
   
   // Chat history state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,14 +58,6 @@ function App() {
   // Detect iOS for special handling
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-  // Check speech synthesis support
-  useEffect(() => {
-    setSpeechReady(isSpeechSynthesisSupported());
-    if (!isSpeechSynthesisSupported()) {
-      console.warn('Speech synthesis not supported in this browser');
-    }
-  }, []);
 
   // Sync recording state with speech recognition
   useEffect(() => {
@@ -109,49 +102,98 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Auto-play greeting on page load
+  // Auto-prepare audio context and play greeting on page load
   useEffect(() => {
-    const playGreeting = async () => {
-      if (hasPlayedGreeting || !browserSupportsSpeechRecognition || !speechReady) {
+    const initializeAndPlayGreeting = async () => {
+      if (hasPlayedGreeting || !browserSupportsSpeechRecognition) {
         return;
       }
       
       try {
-        console.log('🎵 Playing welcome greeting...');
-        setIsPlayingGreeting(true);
+        console.log('🎵 Auto-initializing audio and playing greeting...');
+        
+        // Try to prepare audio context immediately
+        await prepareAudioContext();
+        setAudioContextReady(true);
         setUserHasInteracted(true);
+        console.log('✅ Audio context auto-prepared');
         
+        // Play greeting immediately
+        setIsPlayingGreeting(true);
         const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-        await synthesizeSpeech(greetingText);
+        const audioBuffer = await synthesizeSpeech(greetingText);
         
+        await playAudioBuffer(audioBuffer);
         setHasPlayedGreeting(true);
-        console.log('✅ Greeting played successfully');
+        console.log('✅ Auto-greeting played successfully');
         
       } catch (error) {
-        console.error('❌ Greeting failed:', error);
-        setHasPlayedGreeting(true); // Mark as played to avoid retry loops
+        console.error('❌ Auto-greeting failed:', error);
+        // If auto-play fails, fall back to requiring user interaction
+        setHasPlayedGreeting(false);
+        setUserHasInteracted(false);
+        setAudioContextReady(false);
         
-        if (error instanceof Error && error.message.includes('not supported')) {
-          setError('Speech synthesis not supported on this device.');
+        // Show a helpful message to the user
+        if (error instanceof Error && error.message.includes('user interaction')) {
+          setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
         }
       } finally {
         setIsPlayingGreeting(false);
       }
     };
 
-    // Start greeting after a short delay
-    const timer = setTimeout(playGreeting, 1000);
+    // Start initialization after a short delay to ensure page is fully loaded
+    const timer = setTimeout(initializeAndPlayGreeting, 1000);
     return () => clearTimeout(timer);
-  }, [hasPlayedGreeting, browserSupportsSpeechRecognition, speechReady]);
+  }, [hasPlayedGreeting, browserSupportsSpeechRecognition]);
 
-  // Handle first user interaction
+  // Prepare audio context on first user interaction (fallback)
   const handleFirstInteraction = async () => {
     if (!userHasInteracted) {
       console.log('👆 First user interaction detected');
       setUserHasInteracted(true);
-      setError(null);
+      
+      try {
+        await prepareAudioContext();
+        setAudioContextReady(true);
+        console.log('✅ Audio context prepared');
+        setError(null); // Clear any previous audio errors
+      } catch (error) {
+        console.error('❌ Failed to prepare audio context:', error);
+        setError('Audio initialization failed. Some features may not work properly.');
+      }
     }
   };
+
+  // Play welcome greeting after user interaction (fallback)
+  useEffect(() => {
+    const playWelcomeGreeting = async () => {
+      if (hasPlayedGreeting || !browserSupportsSpeechRecognition || !userHasInteracted || !audioContextReady) {
+        return;
+      }
+      
+      try {
+        setIsPlayingGreeting(true);
+        const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+        const audioBuffer = await synthesizeSpeech(greetingText);
+        
+        await playAudioBuffer(audioBuffer);
+        setHasPlayedGreeting(true);
+      } catch (error) {
+        console.error('Error playing welcome greeting:', error);
+        // Don't show error for greeting, just mark as played
+        setHasPlayedGreeting(true);
+      } finally {
+        setIsPlayingGreeting(false);
+      }
+    };
+
+    if (userHasInteracted && audioContextReady && !hasPlayedGreeting) {
+      const timer = setTimeout(playWelcomeGreeting, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasPlayedGreeting, browserSupportsSpeechRecognition, userHasInteracted, audioContextReady]);
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
@@ -226,37 +268,36 @@ function App() {
       // Add AI response to chat
       addMessage(aiText, false);
       
-      // Convert AI response to speech using native TTS
-      if (speechReady) {
-        console.log('🔊 Converting to speech...');
+      // Convert AI response to speech
+      console.log('🔊 Converting to speech...');
+      const audioBuffer = await synthesizeSpeech(aiText);
+      
+      // Auto-play response with haptic feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate([100, 50, 100]);
+      }
+      
+      setIsPlayingAudio(true);
+      
+      try {
+        await playAudioBuffer(audioBuffer);
+        setIsPlayingAudio(false);
+      } catch (audioError) {
+        console.error('❌ Audio playback failed:', audioError);
+        setIsPlayingAudio(false);
         
-        // Add haptic feedback
-        if ('vibrate' in navigator) {
-          navigator.vibrate([100, 50, 100]);
-        }
-        
-        setIsPlayingAudio(true);
-        
-        try {
-          await synthesizeSpeech(aiText);
-          setIsPlayingAudio(false);
-        } catch (audioError) {
-          console.error('❌ Speech synthesis failed:', audioError);
-          setIsPlayingAudio(false);
-          
-          // Show user-friendly error for speech issues
-          if (audioError instanceof Error) {
-            if (audioError.message.includes('not supported')) {
-              setError('Speech synthesis not supported on this device.');
-            } else {
-              setError('Speech playback failed. Please check your device settings.');
-            }
+        // Show user-friendly error for audio issues
+        if (audioError instanceof Error) {
+          if (audioError.message.includes('user interaction') || audioError.message.includes('tap the screen')) {
+            setError('Please tap the screen first to enable audio on your device.');
+          } else if (audioError.message.includes('not supported')) {
+            setError('Audio not supported on this device.');
           } else {
-            setError('Speech playback failed. Please try again.');
+            setError('Audio playback failed. Please check your device settings.');
           }
+        } else {
+          setError('Audio playback failed. Please try again.');
         }
-      } else {
-        console.warn('Speech synthesis not available');
       }
       
     } catch (error) {
@@ -266,6 +307,8 @@ function App() {
       if (error instanceof Error) {
         if (error.message.includes('Gemini')) {
           setError('Unable to connect to AI service. Please check your internet connection and try again.');
+        } else if (error.message.includes('ElevenLabs') || error.message.includes('speech')) {
+          setError('Voice synthesis error. Please check your ElevenLabs configuration in settings.');
         } else {
           setError('Something went wrong. Please try again.');
         }
@@ -279,8 +322,8 @@ function App() {
   };
 
   const stopAudio = () => {
-    // Stop the native speech synthesis
-    stopCurrentSpeech();
+    // Stop the global audio
+    stopCurrentAudio();
     setIsPlayingAudio(false);
     setIsPlayingGreeting(false);
   };
@@ -404,19 +447,6 @@ function App() {
     };
   }, []);
 
-  // Check if currently speaking using native API
-  useEffect(() => {
-    const checkSpeaking = () => {
-      const speaking = isSpeaking();
-      if (isPlayingAudio !== speaking) {
-        setIsPlayingAudio(speaking);
-      }
-    };
-
-    const interval = setInterval(checkSpeaking, 100);
-    return () => clearInterval(interval);
-  }, [isPlayingAudio]);
-
   if (!browserSupportsSpeechRecognition) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center p-6">
@@ -486,7 +516,7 @@ function App() {
               setShowApiConfig(true);
             }}
             className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
-            title="Configure Speech Settings"
+            title="Configure ElevenLabs API"
           >
             <Settings className="w-6 h-6 text-gray-600 group-hover:text-gray-900 group-hover:rotate-90 transition-all duration-300" />
           </button>
@@ -547,7 +577,7 @@ function App() {
               </div>
             </div>
             
-            {/* Click hint overlay for audio playing state */}
+            {/* Click hint overlay for audio playing state - using gray instead of red */}
             {(isPlayingAudio || isPlayingGreeting) && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="absolute inset-0 rounded-full bg-gray-200 animate-pulse"></div>
@@ -562,10 +592,10 @@ function App() {
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-2xl">
               <p className="text-red-800 text-sm text-center">{error}</p>
-              {error.includes('not supported') && (
+              {error.includes('tap the screen') && (
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                   <p className="text-blue-800 text-xs text-center">
-                    💡 <strong>Note:</strong> This device doesn't support speech synthesis. You can still use voice input.
+                    💡 <strong>Quick Fix:</strong> Tap anywhere on the screen, then try speaking again.
                   </p>
                 </div>
               )}
@@ -577,11 +607,11 @@ function App() {
             </div>
           )}
 
-          {/* Speech Support Status */}
-          {!speechReady && (
+          {/* Audio Context Status */}
+          {userHasInteracted && !audioContextReady && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl">
               <p className="text-amber-800 text-sm text-center">
-                🔊 Speech synthesis not available - responses will be text only
+                🔊 Preparing audio system...
               </p>
             </div>
           )}
@@ -632,11 +662,11 @@ function App() {
                 <p className="text-gray-600 text-sm mb-1">Ask for a verse or spiritual advice</p>
                 <p className="text-gray-500 text-xs">
                   {!userHasInteracted ? 
-                    (speechReady ? 'Voice greeting will play automatically' : 'Tap the button to speak') :
+                    'Audio will start automatically' :
                     (isMobile ? 'Tap the button and speak clearly' : 'Tap the button below to speak')
                   }
                 </p>
-                {isMobile && !userHasInteracted && speechReady && (
+                {isMobile && !userHasInteracted && (
                   <p className="text-gray-400 text-xs mt-1">
                     📱 Voice greeting will play automatically
                   </p>
