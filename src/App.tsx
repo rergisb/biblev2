@@ -618,64 +618,6 @@ function App() {
               </p>
             </div>
           )}
-
-          {/* Status Messages */}
-          <div className="text-center min-h-[60px] flex items-center justify-center">
-            {isPlayingGreeting ? (
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
-                  <p className="text-gray-700 font-medium">Welcome to your Bible companion...</p>
-                </div>
-                <p className="text-gray-500 text-xs">Tap anywhere to stop</p>
-              </div>
-            ) : isRecording ? (
-              <div className="space-y-2">
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-pulse"></div>
-                  <p className="text-gray-800 font-medium">Listening...</p>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  {isMobile ? 'Speak clearly and wait for processing' : 'Share your heart or ask for guidance'}
-                </p>
-                {pendingTranscript && (
-                  <p className="text-gray-700 text-xs italic">"{pendingTranscript}"</p>
-                )}
-              </div>
-            ) : isProcessing ? (
-              <div className="flex items-center justify-center gap-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-                <span className="text-gray-700 font-medium">Seeking wisdom...</span>
-              </div>
-            ) : isPlayingAudio ? (
-              <div className="space-y-1">
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
-                  <span className="text-gray-700 font-medium">🔊 Speaking God's word...</span>
-                </div>
-                <p className="text-gray-500 text-xs">Tap anywhere to stop and speak</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <p className="text-gray-800 font-medium mb-2">Ready for Bible guidance</p>
-                <p className="text-gray-500 text-xs">
-                  {!userHasInteracted ? 
-                    'Audio will start automatically' :
-                    'Tap anywhere on the screen to speak'
-                  }
-                </p>
-                {isMobile && !userHasInteracted && (
-                  <p className="text-gray-400 text-xs mt-1">
-                    📱 Voice greeting will play automatically
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Main Interaction Button */}
