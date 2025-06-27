@@ -620,55 +620,6 @@ function App() {
           )}
         </div>
 
-        {/* Main Interaction Button */}
-        <div className="relative">
-          <button
-            onClick={handleButtonClick}
-            disabled={isProcessing}
-            className={`relative w-20 h-20 rounded-full transition-all duration-300 transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-              isPlayingAudio || isPlayingGreeting
-                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
-                : isRecording
-                ? 'bg-gray-700 hover:bg-gray-800 shadow-gray-700/30'
-                : 'bg-gray-800 hover:bg-gray-900 shadow-gray-800/30 hover:scale-105'
-            }`}
-            aria-label={
-              isPlayingAudio || isPlayingGreeting 
-                ? 'Stop audio' 
-                : isRecording 
-                ? 'Stop recording' 
-                : 'Start recording'
-            }
-          >
-            {/* Glow Effect */}
-            <div className={`absolute inset-0 rounded-full transition-all duration-300 ${
-              isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-gray-700/20 animate-ping'
-                : 'bg-gray-800/20'
-            }`}></div>
-            
-            {/* Button Content */}
-            <div className="relative z-10 w-full h-full flex items-center justify-center">
-              {isPlayingAudio || isPlayingGreeting ? (
-                <Square className="w-6 h-6 text-white fill-current" />
-              ) : isRecording ? (
-                <div className="w-6 h-6 bg-white rounded-sm"></div>
-              ) : (
-                <Mic className="w-8 h-8 text-white" />
-              )}
-            </div>
-          </button>
-
-          {/* Pulse Ring for Active States */}
-          {(isRecording || isPlayingAudio || isPlayingGreeting) && (
-            <div className={`absolute inset-0 rounded-full animate-ping ${
-              isRecording || isPlayingAudio || isPlayingGreeting
-                ? 'bg-gray-700/30' 
-                : 'bg-gray-700/30'
-            }`}></div>
-          )}
-        </div>
-
         {/* Bottom Spacing */}
         <div className="h-8"></div>
       </div>
