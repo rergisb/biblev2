@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { Mic, Square } from 'lucide-react';
 
 interface VoiceVisualizerProps {
   isRecording: boolean;
@@ -222,6 +223,47 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         className="w-72 h-72 rounded-full"
         style={{ filter: 'blur(0.5px)' }}
       />
+      
+      {/* Central Status Indicator with Microphone Icon */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className={`w-24 h-24 rounded-full flex items-center justify-center transition-all duration-500 ${
+          isProcessing
+            ? 'bg-gray-600/15 shadow-lg shadow-gray-600/30 animate-pulse'
+            : isRecording 
+            ? 'bg-gray-800/10 shadow-lg shadow-gray-800/20' 
+            : isPlaying
+            ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
+            : 'bg-gray-100/50'
+        }`}>
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+            isProcessing
+              ? 'bg-gray-600/20 animate-pulse'
+              : isRecording 
+              ? 'bg-gray-800/20 animate-pulse' 
+              : isPlaying
+              ? 'bg-gray-700/20 animate-pulse'
+              : 'bg-gray-200/50'
+          } ${(isPlaying || isProcessing) ? 'pointer-events-auto cursor-pointer' : ''}`}
+          onClick={(isPlaying || isProcessing) ? onClick : undefined}>
+            {isPlaying ? (
+              <Square className="w-6 h-6 text-gray-700 fill-current" />
+            ) : isProcessing ? (
+              <div className="flex items-center justify-center">
+                <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce mx-1" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              </div>
+            ) : (
+              <Mic className={`w-8 h-8 transition-colors duration-300 ${
+                isRecording 
+                  ? 'text-gray-800' 
+                  : 'text-gray-500'
+              }`} />
+            )}
+          </div>
+        </div>
+      </div>
+      
       {/* Additional glow overlay - updated styling for all states and made clickable */}
       <div 
         className={`absolute inset-0 rounded-full transition-all duration-500 cursor-pointer ${
