@@ -462,11 +462,10 @@ function App() {
     stopAudio();
   };
 
-  // Cleanup audio on unmount
+  // Cleanup audio on unmount - removed backgroundAudioService.cleanup()
   useEffect(() => {
     return () => {
       stopAudio();
-      backgroundAudioService.cleanup();
     };
   }, []);
 
