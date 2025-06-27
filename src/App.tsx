@@ -135,8 +135,8 @@ function App() {
         setUserHasInteracted(true);
         console.log('✅ Audio context prepared for greeting');
         
-        // Play greeting
-        const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+        // Play greeting with updated text
+        const greetingText = "Hello there! Want to read a verse or get some Bible advice? Enable microphone to start.";
         const audioBuffer = await synthesizeSpeech(greetingText);
         
         await playAudioBuffer(audioBuffer);
@@ -183,7 +183,7 @@ function App() {
           setIsPlayingGreeting(true);
           
           try {
-            const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+            const greetingText = "Hello there! Want to read a verse or get some Bible advice? Enable microphone to start.";
             const audioBuffer = await synthesizeSpeech(greetingText);
             
             await playAudioBuffer(audioBuffer);
