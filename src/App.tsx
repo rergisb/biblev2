@@ -518,7 +518,7 @@ function App() {
       {/* Tap anywhere text - closer to navigation bar */}
       <div className="fixed top-20 left-0 right-0 z-20 flex justify-center pt-4">
         <p className="text-lg font-medium text-gray-600 text-center px-6">
-          Tap anywhere on screen
+          Tap anywhere on screen to start or stop
         </p>
       </div>
 
