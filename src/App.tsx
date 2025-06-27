@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, MicOff, Settings, Square, MessageCircle } from 'lucide-react';
+import { Mic, MicOff, Square, MessageCircle } from 'lucide-react';
 import { VoiceVisualizer } from './components/VoiceVisualizer';
-import { ApiConfigModal } from './components/ApiConfigModal';
 import { ChatHistory } from './components/ChatHistory';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
@@ -31,7 +30,6 @@ function App() {
   const [hasPlayedGreeting, setHasPlayedGreeting] = useState(false);
   const [isPlayingGreeting, setIsPlayingGreeting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [showApiConfig, setShowApiConfig] = useState(false);
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [pendingTranscript, setPendingTranscript] = useState<string>('');
   const [userHasInteracted, setUserHasInteracted] = useState(false);
@@ -512,18 +510,8 @@ function App() {
             />
           </div>
 
-          {/* Right - Settings Button */}
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              await handleFirstInteraction();
-              setShowApiConfig(true);
-            }}
-            className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
-            title="Configure ElevenLabs API"
-          >
-            <Settings className="w-6 h-6 text-gray-600 group-hover:text-gray-900 group-hover:rotate-90 transition-all duration-300" />
-          </button>
+          {/* Right - Empty space to maintain center alignment */}
+          <div className="w-[60px]"></div>
         </div>
       </header>
 
@@ -657,12 +645,6 @@ function App() {
         {/* Bottom Spacing */}
         <div className="h-8"></div>
       </div>
-
-      {/* API Configuration Modal */}
-      <ApiConfigModal 
-        isOpen={showApiConfig} 
-        onClose={() => setShowApiConfig(false)} 
-      />
 
       {/* Chat History Modal */}
       <ChatHistory
