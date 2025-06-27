@@ -160,6 +160,12 @@ export const playAudioBuffer = async (audioBuffer: ArrayBuffer): Promise<void> =
     // Decode audio data
     const decodedBuffer = await context.decodeAudioData(audioBuffer.slice(0));
     
+    // Calculate adaptive timeout based on audio duration
+    const audioDurationMs = decodedBuffer.duration * 1000;
+    const timeoutMs = Math.max(audioDurationMs + 5000, 5000); // Minimum 5 seconds, or audio duration + 5 seconds
+    
+    console.log(`🕐 Audio duration: ${audioDurationMs.toFixed(0)}ms, timeout set to: ${timeoutMs.toFixed(0)}ms`);
+    
     // Create audio source
     const source = context.createBufferSource();
     source.buffer = decodedBuffer;
@@ -170,10 +176,14 @@ export const playAudioBuffer = async (audioBuffer: ArrayBuffer): Promise<void> =
     
     return new Promise((resolve, reject) => {
       let hasEnded = false;
+      let timeoutId: NodeJS.Timeout;
       
       const cleanup = () => {
         if (!hasEnded) {
           hasEnded = true;
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
           if (currentAudioSource === source) {
             currentAudioSource = null;
           }
@@ -198,14 +208,14 @@ export const playAudioBuffer = async (audioBuffer: ArrayBuffer): Promise<void> =
         source.start(0);
         console.log('🎵 Audio source started');
         
-        // Fallback timeout
-        setTimeout(() => {
+        // Adaptive timeout based on audio duration
+        timeoutId = setTimeout(() => {
           if (!hasEnded) {
-            console.warn('⏰ Audio playback timeout');
+            console.warn(`⏰ Audio playback timeout after ${timeoutMs}ms`);
             cleanup();
             reject(new Error('Audio playback timeout'));
           }
-        }, 30000);
+        }, timeoutMs);
         
       } catch (error) {
         handleError(error);
@@ -247,10 +257,14 @@ const playAudioBufferFallback = (audioBuffer: ArrayBuffer): Promise<void> => {
       }
       
       let hasEnded = false;
+      let timeoutId: NodeJS.Timeout;
       
       const cleanup = () => {
         if (!hasEnded) {
           hasEnded = true;
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
           URL.revokeObjectURL(audioUrl);
           if ((window as any).currentAudio === audio) {
             (window as any).currentAudio = null;
@@ -282,6 +296,27 @@ const playAudioBufferFallback = (audioBuffer: ArrayBuffer): Promise<void> => {
         console.log('✅ Audio can play through');
       };
       
+      // Set up adaptive timeout for HTML5 audio
+      audio.onloadedmetadata = () => {
+        const audioDurationMs = audio.duration * 1000;
+        const timeoutMs = Math.max(audioDurationMs + 5000, 5000);
+        
+        console.log(`🕐 HTML5 audio duration: ${audioDurationMs.toFixed(0)}ms, timeout set to: ${timeoutMs.toFixed(0)}ms`);
+        
+        // Clear any existing timeout and set new adaptive one
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        timeoutId = setTimeout(() => {
+          if (!hasEnded && audio.paused && audio.currentTime === 0) {
+            console.warn(`⏰ HTML5 audio playback timeout after ${timeoutMs}ms`);
+            cleanup();
+            reject(new Error('Audio playback timeout'));
+          }
+        }, timeoutMs);
+      };
+      
       // Enhanced play with error handling for mobile
       const playPromise = audio.play();
       
@@ -309,14 +344,16 @@ const playAudioBufferFallback = (audioBuffer: ArrayBuffer): Promise<void> => {
           });
       }
       
-      // Fallback timeout for mobile devices
-      setTimeout(() => {
-        if (!hasEnded && audio.paused && audio.currentTime === 0) {
-          console.warn('⏰ HTML5 audio playback timeout - forcing cleanup');
-          cleanup();
-          reject(new Error('Audio playback timeout'));
-        }
-      }, 30000);
+      // Fallback timeout if metadata doesn't load (use default 30 seconds)
+      if (!timeoutId) {
+        timeoutId = setTimeout(() => {
+          if (!hasEnded && audio.paused && audio.currentTime === 0) {
+            console.warn('⏰ HTML5 audio playback timeout - metadata not loaded, using fallback timeout');
+            cleanup();
+            reject(new Error('Audio playback timeout'));
+          }
+        }, 30000);
+      }
       
     } catch (error) {
       console.error('❌ Error creating HTML5 audio:', error);
