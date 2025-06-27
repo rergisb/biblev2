@@ -5,10 +5,11 @@ class BackgroundAudioService {
   private howl: Howl | null = null;
   private fadeInterval: NodeJS.Timeout | null = null;
   private isPlaying: boolean = false;
-  private targetVolume: number = 0.15; // Low volume to not interfere
-  private fadeStep: number = 0.02;
-  private fadeIntervalMs: number = 50;
+  private targetVolume: number = 0.2; // Slightly higher volume for better presence
+  private fadeStep: number = 0.03; // Faster fade for more responsive feel
+  private fadeIntervalMs: number = 30; // Smoother fade transitions
   private isInitialized: boolean = false;
+  private isFadingOut: boolean = false;
 
   constructor() {
     this.initializeAudio();
@@ -22,11 +23,12 @@ class BackgroundAudioService {
       
       this.howl = new Howl({
         src: [audioUrl],
-        loop: true,
+        loop: true, // Enable seamless looping
         volume: 0,
         preload: true,
-        html5: true, // Use HTML5 Audio for streaming
+        html5: false, // Use Web Audio API for better performance and seamless looping
         format: ['mp3'],
+        autoplay: false,
         onload: () => {
           console.log('✅ Background audio loaded successfully with Howler.js');
           console.log('📊 Audio duration:', this.howl?.duration(), 'seconds');
@@ -44,21 +46,10 @@ class BackgroundAudioService {
             errorMessage: error?.message || 'No error message',
             timestamp: new Date().toISOString()
           });
-          console.error('🌐 Network status:', navigator.onLine ? 'Online' : 'Offline');
           
-          // Try to test the URL directly
-          console.log('🧪 Testing audio URL accessibility...');
-          fetch(audioUrl, { method: 'HEAD' })
-            .then(response => {
-              console.log('🧪 URL test response:', {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries())
-              });
-            })
-            .catch(fetchError => {
-              console.error('🧪 URL test failed:', fetchError);
-            });
+          // Fallback to HTML5 audio if Web Audio fails
+          console.log('🔄 Retrying with HTML5 audio...');
+          this.retryWithHtml5();
         },
         onplayerror: (id, error) => {
           console.error('❌ Background audio play error:', error);
@@ -73,6 +64,9 @@ class BackgroundAudioService {
             errorMessage: error?.message || 'No error message',
             timestamp: new Date().toISOString()
           });
+          
+          // Try to unlock audio context and retry
+          this.unlockAudioAndRetry();
         },
         onplay: () => {
           console.log('✅ Background audio started playing');
@@ -80,29 +74,42 @@ class BackgroundAudioService {
             volume: this.howl?.volume(),
             duration: this.howl?.duration(),
             state: this.howl?.state(),
-            playing: this.howl?.playing()
+            playing: this.howl?.playing(),
+            loop: this.howl?.loop()
           });
+          this.isPlaying = true;
         },
         onpause: () => {
           console.log('🔇 Background audio paused');
+          this.isPlaying = false;
         },
         onstop: () => {
           console.log('🛑 Background audio stopped');
           this.isPlaying = false;
+          this.isFadingOut = false;
         },
         onend: () => {
-          // This shouldn't happen with loop=true, but just in case
-          console.log('🔄 Background audio ended (unexpected with loop)');
-          if (this.isPlaying) {
-            this.howl?.play();
+          // This shouldn't happen with loop=true, but handle it gracefully
+          console.log('🔄 Background audio ended (unexpected with loop=true)');
+          if (this.isPlaying && !this.isFadingOut) {
+            console.log('🔄 Restarting background audio to maintain loop');
+            setTimeout(() => {
+              if (this.howl && this.isPlaying) {
+                this.howl.play();
+              }
+            }, 50);
           }
+        },
+        onfade: () => {
+          console.log('🎚️ Background audio fade event');
         }
       });
       
       console.log('🎵 Howl instance created:', {
         state: this.howl.state(),
         duration: this.howl.duration(),
-        volume: this.howl.volume()
+        volume: this.howl.volume(),
+        loop: this.howl.loop()
       });
       
     } catch (error) {
@@ -116,11 +123,68 @@ class BackgroundAudioService {
     }
   }
 
+  private retryWithHtml5(): void {
+    try {
+      console.log('🔄 Retrying background audio with HTML5...');
+      const audioUrl = 'https://pkimavazdqutcxnqwoit.supabase.co/storage/v1/object/public/audio-files/Puzzle%20Game%20Loading.mp3';
+      
+      this.howl = new Howl({
+        src: [audioUrl],
+        loop: true,
+        volume: 0,
+        preload: true,
+        html5: true, // Force HTML5 audio
+        format: ['mp3'],
+        autoplay: false,
+        onload: () => {
+          console.log('✅ Background audio loaded with HTML5 fallback');
+          this.isInitialized = true;
+        },
+        onloaderror: (id, error) => {
+          console.error('❌ HTML5 fallback also failed:', error);
+        },
+        onplay: () => {
+          console.log('✅ Background audio playing with HTML5');
+          this.isPlaying = true;
+        },
+        onstop: () => {
+          this.isPlaying = false;
+          this.isFadingOut = false;
+        }
+      });
+    } catch (error) {
+      console.error('❌ HTML5 fallback initialization failed:', error);
+    }
+  }
+
+  private unlockAudioAndRetry(): void {
+    console.log('🔓 Attempting to unlock audio context...');
+    
+    // Try to resume audio context if suspended
+    if (typeof window !== 'undefined' && window.AudioContext) {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log('✅ Audio context resumed');
+          // Retry playing after a short delay
+          setTimeout(() => {
+            if (this.howl && this.isPlaying) {
+              this.howl.play();
+            }
+          }, 100);
+        }).catch(error => {
+          console.error('❌ Failed to resume audio context:', error);
+        });
+      }
+    }
+  }
+
   public async startBackgroundAudio(): Promise<void> {
     console.log('🎵 startBackgroundAudio called');
     console.log('📊 Current state:', {
       isInitialized: this.isInitialized,
       isPlaying: this.isPlaying,
+      isFadingOut: this.isFadingOut,
       howlState: this.howl?.state(),
       howlExists: !!this.howl
     });
@@ -129,6 +193,9 @@ class BackgroundAudioService {
       console.log('⏭️ Background audio already playing or not initialized');
       return;
     }
+
+    // Reset fading state
+    this.isFadingOut = false;
 
     // Wait for initialization if needed
     if (!this.isInitialized) {
@@ -154,18 +221,19 @@ class BackgroundAudioService {
     }
 
     try {
-      console.log('🎵 Starting background audio with Howler.js...');
+      console.log('🎵 Starting background audio with seamless loop...');
       console.log('📊 Pre-play state:', {
         state: this.howl.state(),
         volume: this.howl.volume(),
         duration: this.howl.duration(),
-        playing: this.howl.playing()
+        playing: this.howl.playing(),
+        loop: this.howl.loop()
       });
       
-      this.isPlaying = true;
-      
-      // Start playing at volume 0
+      // Ensure volume starts at 0 for smooth fade in
       this.howl.volume(0);
+      
+      // Start playing
       const soundId = this.howl.play();
       
       console.log('🎵 Play method called, sound ID:', soundId);
@@ -173,13 +241,14 @@ class BackgroundAudioService {
         state: this.howl.state(),
         volume: this.howl.volume(),
         playing: this.howl.playing(),
-        soundId
+        soundId,
+        loop: this.howl.loop()
       });
       
       if (soundId) {
-        // Fade in
+        // Start fade in immediately
         this.fadeIn();
-        console.log('✅ Background audio play initiated, sound ID:', soundId);
+        console.log('✅ Background audio play initiated with seamless loop, sound ID:', soundId);
       } else {
         console.error('❌ Failed to get sound ID from Howler.js play()');
         this.isPlaying = false;
@@ -201,32 +270,32 @@ class BackgroundAudioService {
     console.log('🔇 stopBackgroundAudio called');
     console.log('📊 Current state:', {
       isPlaying: this.isPlaying,
+      isFadingOut: this.isFadingOut,
       howlExists: !!this.howl,
       howlState: this.howl?.state(),
       howlPlaying: this.howl?.playing()
     });
 
-    if (!this.howl || !this.isPlaying) {
-      console.log('⏭️ Background audio not playing or not initialized');
+    if (!this.howl || !this.isPlaying || this.isFadingOut) {
+      console.log('⏭️ Background audio not playing, not initialized, or already fading out');
       return;
     }
 
-    console.log('🔇 Stopping background audio...');
+    console.log('🔇 Stopping background audio with fade out...');
+    this.isFadingOut = true;
     this.fadeOut();
   }
 
   private fadeIn(): void {
-    if (!this.howl) return;
+    if (!this.howl || this.isFadingOut) return;
     
     console.log('📈 Starting fade in...');
     
     // Clear any existing fade
-    if (this.fadeInterval) {
-      clearInterval(this.fadeInterval);
-    }
+    this.clearFadeInterval();
     
     this.fadeInterval = setInterval(() => {
-      if (!this.howl) {
+      if (!this.howl || this.isFadingOut) {
         this.clearFadeInterval();
         return;
       }
@@ -249,9 +318,7 @@ class BackgroundAudioService {
     console.log('📉 Starting fade out...');
     
     // Clear any existing fade
-    if (this.fadeInterval) {
-      clearInterval(this.fadeInterval);
-    }
+    this.clearFadeInterval();
     
     this.fadeInterval = setInterval(() => {
       if (!this.howl) {
@@ -265,10 +332,12 @@ class BackgroundAudioService {
         this.howl.volume(newVolume);
         console.log('📉 Fade out progress:', newVolume.toFixed(3));
       } else {
+        // Stop the audio completely
         this.howl.stop();
         this.isPlaying = false;
+        this.isFadingOut = false;
         this.clearFadeInterval();
-        console.log('✅ Background audio fade out complete');
+        console.log('✅ Background audio fade out complete and stopped');
       }
     }, this.fadeIntervalMs);
   }
@@ -283,15 +352,16 @@ class BackgroundAudioService {
   public setVolume(volume: number): void {
     this.targetVolume = Math.max(0, Math.min(1, volume));
     console.log('🔊 Setting target volume to:', this.targetVolume);
-    if (this.howl && this.isPlaying) {
+    if (this.howl && this.isPlaying && !this.isFadingOut) {
       this.howl.volume(this.targetVolume);
     }
   }
 
   public isCurrentlyPlaying(): boolean {
-    const playing = this.isPlaying && this.howl?.playing() === true;
+    const playing = this.isPlaying && this.howl?.playing() === true && !this.isFadingOut;
     console.log('❓ isCurrentlyPlaying check:', {
       isPlaying: this.isPlaying,
+      isFadingOut: this.isFadingOut,
       howlPlaying: this.howl?.playing(),
       result: playing
     });
@@ -305,6 +375,7 @@ class BackgroundAudioService {
 
   public cleanup(): void {
     console.log('🧹 Cleaning up background audio service...');
+    this.isFadingOut = true;
     this.stopBackgroundAudio();
     
     if (this.fadeInterval) {
@@ -319,6 +390,7 @@ class BackgroundAudioService {
     
     this.isInitialized = false;
     this.isPlaying = false;
+    this.isFadingOut = false;
     console.log('✅ Background audio service cleanup complete');
   }
 }

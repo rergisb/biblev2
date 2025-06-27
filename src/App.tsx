@@ -83,15 +83,17 @@ function App() {
     }
   }, [isProcessing]);
 
-  // Background audio management - start when processing, stop when done
+  // Background audio management - start when processing, stop when ready to respond
   useEffect(() => {
     if (isProcessing) {
+      console.log('🎵 Starting background audio for processing...');
       backgroundAudioService.startBackgroundAudio().catch(error => {
         console.log('Background audio failed to start:', error);
       });
     } else {
-      // Stop background audio when processing is complete
+      // Stop background audio when processing is complete (ready to respond)
       if (backgroundAudioService.isCurrentlyPlaying()) {
+        console.log('🔇 Stopping background audio - ready to respond');
         backgroundAudioService.stopBackgroundAudio();
       }
     }
@@ -294,6 +296,10 @@ function App() {
       console.log('🔊 Converting to speech...');
       const audioBuffer = await synthesizeSpeech(aiText);
       
+      // Stop processing (this will stop background audio)
+      setIsProcessing(false);
+      processingRef.current = false;
+      
       // Auto-play response with haptic feedback
       if ('vibrate' in navigator) {
         navigator.vibrate([100, 50, 100]);
@@ -325,6 +331,10 @@ function App() {
     } catch (error) {
       console.error('❌ Error processing message:', error);
       
+      // Stop processing on error
+      processingRef.current = false;
+      setIsProcessing(false);
+      
       // Provide more specific error messages
       if (error instanceof Error) {
         if (error.message.includes('Gemini')) {
@@ -337,9 +347,6 @@ function App() {
       } else {
         setError('Connection error. Please check your network and try again.');
       }
-    } finally {
-      processingRef.current = false;
-      setIsProcessing(false);
     }
   };
 
@@ -351,6 +358,7 @@ function App() {
     
     // Also stop background audio if it's playing
     if (backgroundAudioService.isCurrentlyPlaying()) {
+      console.log('🔇 Stopping background audio from stopAudio()');
       backgroundAudioService.stopBackgroundAudio();
     }
   };
