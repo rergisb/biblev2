@@ -6,7 +6,7 @@ export const playPulseSound = async (): Promise<void> => {
     // Create or reuse audio instance
     if (!pulseAudio) {
       pulseAudio = new Audio('/sounds/pulse.mp3');
-      pulseAudio.volume = 0.3; // Keep it subtle
+      pulseAudio.volume = 0.7; // Increased from 0.3 to 0.7 for more noticeable sound
       pulseAudio.preload = 'auto';
     }
 
@@ -45,9 +45,9 @@ const playSyntheticPulse = async (): Promise<void> => {
   oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800Hz tone
   oscillator.type = 'sine';
   
-  // Create a quick fade in/out envelope
+  // Create a quick fade in/out envelope - increased volume for synthetic pulse too
   gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-  gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.05); // Fade in
+  gainNode.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + 0.05); // Increased from 0.1 to 0.25
   gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2); // Fade out
   
   // Play for 200ms
