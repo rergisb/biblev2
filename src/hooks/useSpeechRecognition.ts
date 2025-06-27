@@ -228,7 +228,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       };
 
       recognition.onerror = (event) => {
-        console.error('❌ Speech recognition error:', event.error, event);
+        console.log('Speech recognition event:', event.error, event);
         
         // Clear timeout
         if (timeoutRef.current) {
@@ -242,33 +242,40 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         // Handle specific errors with user-friendly messages
         switch (event.error) {
           case 'not-allowed':
+            console.error('❌ Speech recognition error: not-allowed');
             setError('Microphone access denied. Please allow microphone access and try again.');
             hasPermissionRef.current = false;
             break;
           case 'no-speech':
-            console.log('No speech detected - this is normal');
+            console.log('ℹ️ No speech detected - this is normal behavior');
             setError(null); // Don't show error for no speech
             break;
           case 'audio-capture':
+            console.error('❌ Speech recognition error: audio-capture');
             setError('Cannot access microphone. Please check if another app is using it.');
             break;
           case 'network':
+            console.error('❌ Speech recognition error: network');
             setError('Network error. Please check your internet connection.');
             break;
           case 'service-not-allowed':
+            console.error('❌ Speech recognition error: service-not-allowed');
             setError('Speech recognition service not allowed. Please check browser settings.');
             break;
           case 'bad-grammar':
+            console.error('❌ Speech recognition error: bad-grammar');
             setError('Speech recognition grammar error.');
             break;
           case 'language-not-supported':
+            console.error('❌ Speech recognition error: language-not-supported');
             setError('Language not supported.');
             break;
           case 'aborted':
-            console.log('Speech recognition aborted');
+            console.log('ℹ️ Speech recognition aborted');
             setError(null);
             break;
           default:
+            console.error('❌ Speech recognition error:', event.error);
             setError(`Speech recognition error: ${event.error}`);
         }
       };
