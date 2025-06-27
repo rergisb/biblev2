@@ -527,10 +527,10 @@ function App() {
         </div>
       </header>
 
-      {/* Big Bold Text Below Header */}
-      <div className="fixed top-24 left-0 right-0 z-20 flex justify-center" style={{ marginTop: '72px' }}>
-        <p className="text-3xl font-bold text-gray-800 text-center px-6">
-          Tap anywhere on screen to ask for<br />a bible verse or spiritual advise
+      {/* Tap anywhere text - closer to navigation bar */}
+      <div className="fixed top-20 left-0 right-0 z-20 flex justify-center pt-4">
+        <p className="text-lg font-medium text-gray-600 text-center px-6">
+          Tap anywhere on screen
         </p>
       </div>
 
@@ -541,8 +541,8 @@ function App() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gray-50 rounded-full blur-3xl opacity-20"></div>
       </div>
 
-      {/* Main Content Container - adjusted for header and big text */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6" style={{ paddingTop: '180px' }}>
+      {/* Main Content Container */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6" style={{ paddingTop: '120px' }}>
         
         {/* Central Visualizer Area */}
         <div className="flex-1 flex items-center justify-center w-full max-w-md">
@@ -556,6 +556,13 @@ function App() {
               onClick={handleVisualizerClick}
             />
           </div>
+        </div>
+
+        {/* Ask for Bible verse text - below the overlay */}
+        <div className="w-full max-w-md text-center mb-8">
+          <p className="text-2xl font-semibold text-gray-800 px-6">
+            Ask for Bible verse or spiritual advice
+          </p>
         </div>
 
         {/* Status Text Area */}
@@ -587,6 +594,64 @@ function App() {
               </p>
             </div>
           )}
+
+          {/* Status Messages */}
+          <div className="text-center min-h-[60px] flex items-center justify-center">
+            {isPlayingGreeting ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
+                  <p className="text-gray-700 font-medium">Welcome to your Bible companion...</p>
+                </div>
+                <p className="text-gray-500 text-xs">Tap anywhere to stop</p>
+              </div>
+            ) : isRecording ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-pulse"></div>
+                  <p className="text-gray-800 font-medium">Listening...</p>
+                </div>
+                <p className="text-gray-600 text-sm">
+                  {isMobile ? 'Speak clearly and wait for processing' : 'Share your heart or ask for guidance'}
+                </p>
+                {pendingTranscript && (
+                  <p className="text-gray-700 text-xs italic">"{pendingTranscript}"</p>
+                )}
+              </div>
+            ) : isProcessing ? (
+              <div className="flex items-center justify-center gap-3">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <span className="text-gray-700 font-medium">Seeking wisdom...</span>
+              </div>
+            ) : isPlayingAudio ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
+                  <span className="text-gray-700 font-medium">🔊 Speaking God's word...</span>
+                </div>
+                <p className="text-gray-500 text-xs">Tap anywhere to stop and speak</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-800 font-medium mb-2">Ready for Bible guidance</p>
+                <p className="text-gray-500 text-xs">
+                  {!userHasInteracted ? 
+                    'Audio will start automatically' :
+                    'Tap anywhere on the screen to speak'
+                  }
+                </p>
+                {isMobile && !userHasInteracted && (
+                  <p className="text-gray-400 text-xs mt-1">
+                    📱 Voice greeting will play automatically
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom Spacing */}
