@@ -235,30 +235,26 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
             ? 'bg-gray-700/10 shadow-lg shadow-gray-700/20'
             : 'bg-gray-100/50'
         }`}>
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
             isProcessing
-              ? 'bg-gray-600/20 animate-pulse'
+              ? 'bg-black border-white animate-pulse'
               : isRecording 
-              ? 'bg-gray-800/20 animate-pulse' 
+              ? 'bg-black border-white animate-pulse' 
               : isPlaying
-              ? 'bg-gray-700/20 animate-pulse'
-              : 'bg-gray-200/50'
+              ? 'bg-gray-700/20 border-gray-300 animate-pulse'
+              : 'bg-black border-white'
           } ${(isPlaying || isProcessing) ? 'pointer-events-auto cursor-pointer' : ''}`}
           onClick={(isPlaying || isProcessing) ? onClick : undefined}>
             {isPlaying ? (
               <Square className="w-6 h-6 text-gray-700 fill-current" />
             ) : isProcessing ? (
               <div className="flex items-center justify-center">
-                <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce mx-1" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce mx-1" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
             ) : (
-              <Mic className={`w-8 h-8 transition-colors duration-300 ${
-                isRecording 
-                  ? 'text-gray-800' 
-                  : 'text-gray-500'
-              }`} />
+              <Mic className="w-8 h-8 text-white" />
             )}
           </div>
         </div>
