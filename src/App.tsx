@@ -395,10 +395,8 @@ function App() {
     // Handle first interaction
     await handleFirstInteraction();
     
-    // Only handle clicks when audio is playing
-    if (isPlayingAudio || isPlayingGreeting) {
-      handleStopAudio();
-    }
+    // Use the same logic as the main button
+    await handleButtonClick();
   };
 
   // Handle tap anywhere to start conversation - simplified to use handleButtonClick
@@ -538,17 +536,13 @@ function App() {
         
         {/* Central Visualizer Area */}
         <div className="flex-1 flex items-center justify-center w-full max-w-md">
-          <div 
-            className={`relative voice-visualizer ${
-              (isPlayingAudio || isPlayingGreeting) ? 'cursor-pointer' : ''
-            }`}
-            onClick={handleVisualizerClick}
-          >
+          <div className="relative voice-visualizer">
             {/* Main Visualizer */}
             <VoiceVisualizer
               isRecording={isRecording}
               isPlaying={isPlayingAudio || isPlayingGreeting}
               audioLevel={isRecording ? 0.8 : isPlayingAudio ? 0.6 : 0.1}
+              onClick={handleVisualizerClick}
             />
             
             {/* Central Status Indicator */}

@@ -4,12 +4,14 @@ interface VoiceVisualizerProps {
   isRecording: boolean;
   isPlaying: boolean;
   audioLevel?: number;
+  onClick?: () => void;
 }
 
 export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
   isRecording,
   isPlaying,
-  audioLevel = 0
+  audioLevel = 0,
+  onClick
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
@@ -161,14 +163,17 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
         className="w-72 h-72 rounded-full"
         style={{ filter: 'blur(0.5px)' }}
       />
-      {/* Additional glow overlay - updated styling for idle state */}
-      <div className={`absolute inset-0 rounded-full transition-all duration-500 ${
-        isRecording 
-          ? 'bg-gray-800/5 shadow-2xl shadow-gray-800/20' 
-          : isPlaying
-          ? 'bg-gray-600/5 shadow-2xl shadow-gray-600/20'
-          : 'bg-gray-800/20 shadow-lg shadow-gray-800/30'
-      }`}></div>
+      {/* Additional glow overlay - updated styling for idle state and made clickable */}
+      <div 
+        className={`absolute inset-0 rounded-full transition-all duration-500 cursor-pointer ${
+          isRecording 
+            ? 'bg-gray-800/5 shadow-2xl shadow-gray-800/20' 
+            : isPlaying
+            ? 'bg-gray-600/5 shadow-2xl shadow-gray-600/20'
+            : 'bg-gray-800/20 shadow-lg shadow-gray-800/30 hover:bg-gray-800/30 hover:shadow-xl hover:shadow-gray-800/40'
+        }`}
+        onClick={onClick}
+      ></div>
     </div>
   );
 };
