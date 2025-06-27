@@ -166,9 +166,17 @@ function App() {
         setUserHasInteracted(false);
         setAudioContextReady(false);
         
-        // Show helpful message for audio issues
-        if (error instanceof Error && error.message.includes('user interaction')) {
-          setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
+        // Handle specific ElevenLabs errors
+        if (error instanceof Error) {
+          if (error.message.includes('ElevenLabs API error: 429')) {
+            setError('ElevenLabs service is busy due to high traffic. Please try again in a few moments or check your API usage.');
+          } else if (error.message.includes('user interaction')) {
+            setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
+          } else if (error.message.includes('ElevenLabs')) {
+            setError('Voice service temporarily unavailable. You can still use text features.');
+          } else {
+            setError('Audio initialization failed. Please tap anywhere to try again.');
+          }
         }
       } finally {
         setIsPlayingGreeting(false);
@@ -207,6 +215,15 @@ function App() {
           } catch (greetingError) {
             console.error('❌ Manual greeting failed:', greetingError);
             greetingAttemptedRef.current = false;
+            
+            // Handle specific ElevenLabs errors for manual greeting
+            if (greetingError instanceof Error) {
+              if (greetingError.message.includes('ElevenLabs API error: 429')) {
+                setError('ElevenLabs service is busy due to high traffic. Please try again in a few moments or check your API usage.');
+              } else if (greetingError.message.includes('ElevenLabs')) {
+                setError('Voice service temporarily unavailable. You can still use text features.');
+              }
+            }
           } finally {
             setIsPlayingGreeting(false);
           }
@@ -314,12 +331,16 @@ function App() {
         console.error('❌ Audio playback failed:', audioError);
         setIsPlayingAudio(false);
         
-        // Show user-friendly error for audio issues
+        // Show user-friendly error for audio issues with specific ElevenLabs handling
         if (audioError instanceof Error) {
-          if (audioError.message.includes('user interaction') || audioError.message.includes('tap the screen')) {
+          if (audioError.message.includes('ElevenLabs API error: 429')) {
+            setError('ElevenLabs service is busy due to high traffic. Please try again in a few moments or check your API usage.');
+          } else if (audioError.message.includes('user interaction') || audioError.message.includes('tap the screen')) {
             setError('Please tap the screen first to enable audio on your device.');
           } else if (audioError.message.includes('not supported')) {
             setError('Audio not supported on this device.');
+          } else if (audioError.message.includes('ElevenLabs')) {
+            setError('Voice service temporarily unavailable. Please check your ElevenLabs configuration in settings.');
           } else {
             setError('Audio playback failed. Please check your device settings.');
           }
@@ -339,6 +360,8 @@ function App() {
       if (error instanceof Error) {
         if (error.message.includes('Gemini')) {
           setError('Unable to connect to AI service. Please check your internet connection and try again.');
+        } else if (error.message.includes('ElevenLabs API error: 429')) {
+          setError('ElevenLabs service is busy due to high traffic. Please try again in a few moments or check your API usage.');
         } else if (error.message.includes('ElevenLabs') || error.message.includes('speech')) {
           setError('Voice synthesis error. Please check your ElevenLabs configuration in settings.');
         } else {
@@ -591,6 +614,13 @@ function App() {
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                   <p className="text-blue-800 text-xs text-center">
                     💡 <strong>Quick Fix:</strong> Tap anywhere on the screen, then try speaking again.
+                  </p>
+                </div>
+              )}
+              {error.includes('ElevenLabs service is busy') && (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <p className="text-amber-800 text-xs text-center">
+                    ⏳ <strong>Tip:</strong> The voice service is experiencing high traffic. Try again in a few moments or continue with text-only features.
                   </p>
                 </div>
               )}
