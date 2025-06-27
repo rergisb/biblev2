@@ -519,6 +519,13 @@ function App() {
         </div>
       </header>
 
+      {/* Big Bold Text Below Header */}
+      <div className="fixed top-24 left-0 right-0 z-20 flex justify-center" style={{ marginTop: '72px' }}>
+        <p className="text-3xl font-bold text-gray-800 text-center px-6">
+          Ask for a verse or spiritual advice
+        </p>
+      </div>
+
       {/* Subtle Background Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-gray-100 rounded-full blur-3xl opacity-50"></div>
@@ -526,8 +533,8 @@ function App() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gray-50 rounded-full blur-3xl opacity-20"></div>
       </div>
 
-      {/* Main Content Container - adjusted for header */}
-      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 pt-24">
+      {/* Main Content Container - adjusted for header and big text */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6" style={{ paddingTop: '180px' }}>
         
         {/* Central Visualizer Area */}
         <div className="flex-1 flex items-center justify-center w-full max-w-md">
@@ -655,7 +662,6 @@ function App() {
             ) : (
               <div className="text-center">
                 <p className="text-gray-800 font-medium mb-2">Ready for Bible guidance</p>
-                <p className="text-gray-600 text-sm mb-1">Ask for a verse or spiritual advice</p>
                 <p className="text-gray-500 text-xs">
                   {!userHasInteracted ? 
                     'Audio will start automatically' :
