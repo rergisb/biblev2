@@ -241,7 +241,7 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
               : isRecording 
               ? 'bg-black border-white animate-pulse' 
               : isPlaying
-              ? 'bg-gray-700/20 border-gray-300 animate-pulse'
+              ? 'bg-gray-400 border-gray-300 animate-pulse'
               : 'bg-black border-white'
           } ${(isPlaying || isProcessing) ? 'pointer-events-auto cursor-pointer' : ''}`}
           onClick={(isPlaying || isProcessing) ? onClick : undefined}>
