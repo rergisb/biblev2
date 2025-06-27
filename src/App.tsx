@@ -401,19 +401,16 @@ function App() {
     }
   };
 
-  // Handle tap anywhere to start conversation
+  // Handle tap anywhere to start conversation - simplified to use handleButtonClick
   const handleScreenTap = async (e: React.MouseEvent) => {
-    // Handle first interaction
-    await handleFirstInteraction();
-    
-    // Only trigger if not already recording/processing and not clicking the button or visualizer
-    if (!isRecording && !isProcessing && !isPlayingAudio && !isPlayingGreeting) {
-      const target = e.target as HTMLElement;
-      // Don't trigger if clicking the actual button, config button, or visualizer
-      if (!target.closest('button') && !target.closest('.voice-visualizer') && !target.closest('header')) {
-        await handleVoiceStart();
-      }
+    // Don't trigger if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('.voice-visualizer') || target.closest('header')) {
+      return;
     }
+    
+    // Use the same logic as the main button
+    await handleButtonClick();
   };
 
   const handleLoadSession = (session: ChatSession) => {
@@ -623,7 +620,7 @@ function App() {
                   <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
                   <p className="text-gray-700 font-medium">Welcome to your Bible companion...</p>
                 </div>
-                <p className="text-gray-500 text-xs">Tap the center or button to stop</p>
+                <p className="text-gray-500 text-xs">Tap anywhere to stop</p>
               </div>
             ) : isRecording ? (
               <div className="space-y-2">
@@ -653,7 +650,7 @@ function App() {
                   <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
                   <span className="text-gray-700 font-medium">🔊 Speaking God's word...</span>
                 </div>
-                <p className="text-gray-500 text-xs">Tap the center or button to stop and speak</p>
+                <p className="text-gray-500 text-xs">Tap anywhere to stop and speak</p>
               </div>
             ) : (
               <div className="text-center">
@@ -662,7 +659,7 @@ function App() {
                 <p className="text-gray-500 text-xs">
                   {!userHasInteracted ? 
                     'Audio will start automatically' :
-                    (isMobile ? 'Tap the button and speak clearly' : 'Tap the button below to speak')
+                    'Tap anywhere on the screen to speak'
                   }
                 </p>
                 {isMobile && !userHasInteracted && (
