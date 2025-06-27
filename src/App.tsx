@@ -43,6 +43,9 @@ function App() {
 
   // Add ref to track if we're currently processing to prevent duplicates
   const processingRef = useRef(false);
+  
+  // Add ref to prevent multiple greeting attempts
+  const greetingAttemptedRef = useRef(false);
 
   const {
     transcript,
@@ -102,39 +105,43 @@ function App() {
     }
   }, [messages, currentSessionId]);
 
-  // Auto-prepare audio context and play greeting on page load
+  // Single greeting effect - consolidated and simplified
   useEffect(() => {
-    const initializeAndPlayGreeting = async () => {
-      if (hasPlayedGreeting || !browserSupportsSpeechRecognition) {
+    const playGreeting = async () => {
+      // Prevent multiple attempts
+      if (greetingAttemptedRef.current || hasPlayedGreeting || !browserSupportsSpeechRecognition) {
         return;
       }
       
+      greetingAttemptedRef.current = true;
+      console.log('🎵 Attempting to play greeting...');
+      
       try {
-        console.log('🎵 Auto-initializing audio and playing greeting...');
+        setIsPlayingGreeting(true);
         
-        // Try to prepare audio context immediately
+        // Try to prepare audio context
         await prepareAudioContext();
         setAudioContextReady(true);
         setUserHasInteracted(true);
-        console.log('✅ Audio context auto-prepared');
+        console.log('✅ Audio context prepared for greeting');
         
-        // Play greeting immediately
-        setIsPlayingGreeting(true);
+        // Play greeting
         const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
         const audioBuffer = await synthesizeSpeech(greetingText);
         
         await playAudioBuffer(audioBuffer);
         setHasPlayedGreeting(true);
-        console.log('✅ Auto-greeting played successfully');
+        console.log('✅ Greeting played successfully');
         
       } catch (error) {
-        console.error('❌ Auto-greeting failed:', error);
-        // If auto-play fails, fall back to requiring user interaction
+        console.error('❌ Greeting failed:', error);
+        // Reset flag so user interaction can trigger it later
+        greetingAttemptedRef.current = false;
         setHasPlayedGreeting(false);
         setUserHasInteracted(false);
         setAudioContextReady(false);
         
-        // Show a helpful message to the user
+        // Show helpful message for audio issues
         if (error instanceof Error && error.message.includes('user interaction')) {
           setError('Audio requires user interaction. Please tap anywhere to enable voice features.');
         }
@@ -143,8 +150,8 @@ function App() {
       }
     };
 
-    // Start initialization after a short delay to ensure page is fully loaded
-    const timer = setTimeout(initializeAndPlayGreeting, 1000);
+    // Start greeting after a short delay to ensure page is fully loaded
+    const timer = setTimeout(playGreeting, 1000);
     return () => clearTimeout(timer);
   }, [hasPlayedGreeting, browserSupportsSpeechRecognition]);
 
@@ -159,41 +166,33 @@ function App() {
         setAudioContextReady(true);
         console.log('✅ Audio context prepared');
         setError(null); // Clear any previous audio errors
+        
+        // If greeting hasn't played yet, try to play it now
+        if (!hasPlayedGreeting && !greetingAttemptedRef.current) {
+          greetingAttemptedRef.current = true;
+          setIsPlayingGreeting(true);
+          
+          try {
+            const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
+            const audioBuffer = await synthesizeSpeech(greetingText);
+            
+            await playAudioBuffer(audioBuffer);
+            setHasPlayedGreeting(true);
+            console.log('✅ Manual greeting played successfully');
+          } catch (greetingError) {
+            console.error('❌ Manual greeting failed:', greetingError);
+            greetingAttemptedRef.current = false;
+          } finally {
+            setIsPlayingGreeting(false);
+          }
+        }
+        
       } catch (error) {
         console.error('❌ Failed to prepare audio context:', error);
         setError('Audio initialization failed. Some features may not work properly.');
       }
     }
   };
-
-  // Play welcome greeting after user interaction (fallback)
-  useEffect(() => {
-    const playWelcomeGreeting = async () => {
-      if (hasPlayedGreeting || !browserSupportsSpeechRecognition || !userHasInteracted || !audioContextReady) {
-        return;
-      }
-      
-      try {
-        setIsPlayingGreeting(true);
-        const greetingText = "Hello there! Want to read a verse or get some Bible advice? Tap the button to start.";
-        const audioBuffer = await synthesizeSpeech(greetingText);
-        
-        await playAudioBuffer(audioBuffer);
-        setHasPlayedGreeting(true);
-      } catch (error) {
-        console.error('Error playing welcome greeting:', error);
-        // Don't show error for greeting, just mark as played
-        setHasPlayedGreeting(true);
-      } finally {
-        setIsPlayingGreeting(false);
-      }
-    };
-
-    if (userHasInteracted && audioContextReady && !hasPlayedGreeting) {
-      const timer = setTimeout(playWelcomeGreeting, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [hasPlayedGreeting, browserSupportsSpeechRecognition, userHasInteracted, audioContextReady]);
 
   // Handle transcript changes - simplified for better reliability
   useEffect(() => {
