@@ -522,7 +522,7 @@ function App() {
       {/* Big Bold Text Below Header */}
       <div className="fixed top-24 left-0 right-0 z-20 flex justify-center" style={{ marginTop: '72px' }}>
         <p className="text-3xl font-bold text-gray-800 text-center px-6">
-          Ask for a verse or spiritual advice
+          Tap anywhere on screen to ask for a bible verse or spiritual advise
         </p>
       </div>
 
