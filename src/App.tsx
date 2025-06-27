@@ -603,7 +603,7 @@ function App() {
                   <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
                   <p className="text-gray-700 font-medium">Welcome to your Bible companion...</p>
                 </div>
-                <p className="text-gray-500 text-xs">Tap anywhere to stop</p>
+                <p className="text-gray-500 text-xs">Tap anywhere on the screen to stop</p>
               </div>
             ) : isRecording ? (
               <div className="space-y-2">
@@ -633,7 +633,7 @@ function App() {
                   <div className="w-2 h-2 bg-gray-700 rounded-full animate-pulse"></div>
                   <span className="text-gray-700 font-medium">🔊 Speaking God's word...</span>
                 </div>
-                <p className="text-gray-500 text-xs">Tap anywhere to stop and speak</p>
+                <p className="text-gray-500 text-xs">Tap anywhere on the screen to stop</p>
               </div>
             ) : (
               <div className="text-center">
