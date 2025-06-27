@@ -13,7 +13,7 @@ class BackgroundAudioService {
 
   private initializeAudio(): void {
     try {
-      this.audio = new Audio('https://pkimavazdqutcxnqwoit.supabase.co/storage/v1/object/public/audio-files//Puzzle%20Game%20Loading.mp3');
+      this.audio = new Audio('https://pkimavazdqutcxnqwoit.supabase.co/storage/v1/object/public/audio-files/Puzzle%20Game%20Loading.mp3');
       this.audio.loop = true;
       this.audio.volume = 0;
       this.audio.preload = 'auto';
