@@ -6,6 +6,7 @@ import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { synthesizeSpeech, playAudioBuffer, stopCurrentAudio, prepareAudioContext } from './services/elevenLabsService';
 import { generateGeminiResponse } from './services/geminiService';
 import { playPulseSound } from './utils/audioUtils';
+import { backgroundAudioService } from './services/backgroundAudioService';
 
 interface Message {
   id: string;
@@ -79,6 +80,20 @@ function App() {
       playPulseSound().catch(error => {
         console.log('Pulse sound failed:', error);
       });
+    }
+  }, [isProcessing]);
+
+  // Background audio management - start when processing, stop when done
+  useEffect(() => {
+    if (isProcessing) {
+      backgroundAudioService.startBackgroundAudio().catch(error => {
+        console.log('Background audio failed to start:', error);
+      });
+    } else {
+      // Stop background audio when processing is complete
+      if (backgroundAudioService.isCurrentlyPlaying()) {
+        backgroundAudioService.stopBackgroundAudio();
+      }
     }
   }, [isProcessing]);
 
@@ -333,6 +348,11 @@ function App() {
     stopCurrentAudio();
     setIsPlayingAudio(false);
     setIsPlayingGreeting(false);
+    
+    // Also stop background audio if it's playing
+    if (backgroundAudioService.isCurrentlyPlaying()) {
+      backgroundAudioService.stopBackgroundAudio();
+    }
   };
 
   const handleVoiceStart = async () => {
@@ -446,6 +466,7 @@ function App() {
   useEffect(() => {
     return () => {
       stopAudio();
+      backgroundAudioService.cleanup();
     };
   }, []);
 
@@ -607,13 +628,16 @@ function App() {
                 )}
               </div>
             ) : isProcessing ? (
-              <div className="flex items-center justify-center gap-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="flex gap-1">
+                    <div className="w-2 h-2 bg-gray-700 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-gray-800 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-gray-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-gray-700 font-medium">Seeking wisdom...</span>
                 </div>
-                <span className="text-gray-700 font-medium">Seeking wisdom...</span>
+                <p className="text-gray-500 text-xs">🎵 Background music playing during processing</p>
               </div>
             ) : isPlayingAudio ? (
               <div className="space-y-1">
