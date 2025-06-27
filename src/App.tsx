@@ -493,7 +493,7 @@ function App() {
     stopAudio();
   };
 
-  // Cleanup audio on unmount - removed backgroundAudioService.cleanup()
+  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
       stopAudio();
@@ -535,22 +535,26 @@ function App() {
       <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
           {/* Left - Chat History Button */}
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-              await handleFirstInteraction();
-              setShowChatHistory(true);
-            }}
-            className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
-            title="View Chat History"
-          >
-            <MessageCircle className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
+          <div className="relative">
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                await handleFirstInteraction();
+                setShowChatHistory(true);
+              }}
+              className="p-3 bg-gray-50 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all duration-200 group shadow-sm"
+              title="View Chat History"
+            >
+              <MessageCircle className="w-6 h-6 text-gray-600 group-hover:text-gray-900 transition-all duration-300" />
+            </button>
             {messages.length > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gray-800 rounded-full flex items-center justify-center">
-                <span className="text-xs text-white font-bold">{messages.length}</span>
+              <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center shadow-lg">
+                <span className="text-xs text-white font-bold">
+                  {messages.length > 99 ? '99+' : messages.length}
+                </span>
               </div>
             )}
-          </button>
+          </div>
 
           {/* Center - Logo */}
           <div className="flex items-center justify-center">
