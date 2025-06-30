@@ -462,7 +462,7 @@ function App() {
   const handleScreenTap = async (e: React.MouseEvent) => {
     // Don't trigger if clicking on interactive elements
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('.voice-visualizer') || target.closest('header')) {
+    if (target.closest('button') || target.closest('.voice-visualizer') || target.closest('header') || target.closest('.bolt-badge')) {
       return;
     }
     
@@ -531,6 +531,22 @@ function App() {
       className="min-h-screen bg-white text-gray-900 overflow-hidden cursor-pointer"
       onClick={handleScreenTap}
     >
+      {/* Bolt.new Badge - Top Right Corner */}
+      <a
+        href="https://bolt.new"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="bolt-badge fixed top-4 right-4 z-[9999] w-12 h-12 rounded-full overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 group"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img 
+          src="https://i.postimg.cc/gk3JFQ1m/black-circle-360x360.png" 
+          alt="Bolt.new" 
+          className="w-full h-full object-cover group-hover:brightness-110 transition-all duration-300"
+        />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300 rounded-full"></div>
+      </a>
+
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
