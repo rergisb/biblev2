@@ -18,7 +18,8 @@ class BackgroundAudioService {
   private initializeAudio(): void {
     try {
       console.log('🎵 Initializing background audio with Howler.js...');
-      const audioUrl = 'https://pkimavazdqutcxnqwoit.supabase.co/storage/v1/object/public/audio-files/Puzzle%20Game%20Loading.mp3';
+      // Using a known working audio file URL for testing
+      const audioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
       console.log('🔗 Audio URL:', audioUrl);
       
       this.howl = new Howl({
@@ -126,7 +127,8 @@ class BackgroundAudioService {
   private retryWithHtml5(): void {
     try {
       console.log('🔄 Retrying background audio with HTML5...');
-      const audioUrl = 'https://pkimavazdqutcxnqwoit.supabase.co/storage/v1/object/public/audio-files/Puzzle%20Game%20Loading.mp3';
+      // Using the same known working audio file URL for HTML5 fallback
+      const audioUrl = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
       
       this.howl = new Howl({
         src: [audioUrl],
