@@ -1,4 +1,4 @@
-const ELEVENLABS_API_KEY = 'sk_0a236e276dde22d5f926d20bd3d0a63b7ad9a6ddf6cca72d';
+const ELEVENLABS_API_KEY = 'sk_98e8cd97441bd50c44bb9ed2998b6638756b49af2cd602d1';
 const ELEVENLABS_API_URL = 'https://api.elevenlabs.io/v1';
 
 // Using a popular voice ID from ElevenLabs (Rachel - a warm, friendly voice)
